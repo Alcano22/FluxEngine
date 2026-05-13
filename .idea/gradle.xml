@@ -12,6 +12,7 @@
             <option value="$PROJECT_DIR$/engine-backend-glfw" />
             <option value="$PROJECT_DIR$/engine-backend-opengl" />
             <option value="$PROJECT_DIR$/engine-core" />
+            <option value="$PROJECT_DIR$/engine-editor" />
             <option value="$PROJECT_DIR$/sandbox" />
           </set>
         </option>

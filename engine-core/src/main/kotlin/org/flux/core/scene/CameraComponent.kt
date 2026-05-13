@@ -1,5 +1,8 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.flux.core.renderer.Camera
 import org.flux.core.renderer.OrthographicCamera
 import org.flux.core.renderer.PerspectiveCamera
@@ -10,9 +13,11 @@ enum class CameraType {
     PERSPECTIVE
 }
 
+@Serializable
+@SerialName("CameraComponent")
 @SingleComponent
 class CameraComponent(
-    type: CameraType = CameraType.ORTHOGRAPHIC,
+    @SerialName("type") private var _type: CameraType = CameraType.ORTHOGRAPHIC,
     var isPrimary: Boolean = true
 ) : Component() {
 
@@ -24,21 +29,22 @@ class CameraComponent(
     var perspectiveNear = 0.1f
     var perspectiveFar = 1000f
 
-    lateinit var camera: Camera
+    @Transient lateinit var camera: Camera
         private set
 
-    var type = type
+    var type: CameraType
+        get() = _type
         set(value) {
-            field = value
+            _type = value
             recalculateCamera()
         }
 
-    init {
+    override fun onAttach() {
         recalculateCamera()
     }
 
     fun recalculateCamera() {
-        camera = when (type) {
+        camera = when (_type) {
             CameraType.ORTHOGRAPHIC -> OrthographicCamera(
                 size = orthographicSize,
                 aspectRatio = aspectRatio

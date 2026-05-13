@@ -1,9 +1,13 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.flux.core.util.Timestep
 
+@Serializable
 abstract class Component {
 
+    @Transient
     lateinit var entity: Entity
         private set
 

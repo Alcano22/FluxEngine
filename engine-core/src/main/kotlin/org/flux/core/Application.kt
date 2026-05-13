@@ -29,10 +29,17 @@ abstract class Application(val window: Window) {
 
     private var imguiLayer: ImGuiLayer? = null
 
+    private var eventQueue = mutableListOf<Event>()
+    private var processingQueue = mutableListOf<Event>()
+
     init {
         instance = this
 
-        window.eventCallback = ::onEvent
+        window.eventCallback = { event ->
+            synchronized(eventQueue) {
+                eventQueue.add(event)
+            }
+        }
     }
 
     fun pushLayer(layer: Layer) = layerStack.pushLayer(layer)
@@ -47,7 +54,7 @@ abstract class Application(val window: Window) {
 
     open fun onUpdate() {}
 
-    open fun onEvent(event: Event) {
+    private fun processEvent(event: Event) {
         val dispatcher = EventDispatcher(event)
         dispatcher.dispatch<WindowCloseEvent> {
             close()
@@ -69,6 +76,15 @@ abstract class Application(val window: Window) {
             val time = Time.time
             val timestep = Timestep(time - lastFrameTime)
             lastFrameTime = time
+
+            synchronized(eventQueue) {
+                val tmp = processingQueue
+                processingQueue = eventQueue
+                eventQueue = tmp
+            }
+
+            processingQueue.forEach { processEvent(it) }
+            processingQueue.clear()
 
             layerStack.forEach { it.onUpdate(timestep) }
             layerStack.forEach { it.onRender() }

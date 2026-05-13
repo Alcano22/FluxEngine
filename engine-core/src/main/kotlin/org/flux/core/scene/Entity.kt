@@ -1,23 +1,29 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.flux.core.util.Timestep
 import kotlin.reflect.full.hasAnnotation
 
+@Serializable
 class Entity(
-    val name: String,
-    val scene: Scene
+    var name: String = "Unnamed Entity"
 ) {
 
-    val transform = TransformComponent()
-
-    @PublishedApi
-    internal val components = mutableListOf<Component>()
-
-    init {
-        transform.setEntity(this)
-        components.add(transform)
-        transform.onAttach()
+    companion object {
+        private var nextId = 1
     }
+
+    @Transient
+    lateinit var scene: Scene
+        internal set
+
+    @Transient
+    val id = nextId++
+
+    val components = mutableListOf<Component>()
+
+    val transform get() = components[0] as TransformComponent
 
     inline fun <reified T : Component> addComponent(component: T): T {
         if (T::class.hasAnnotation<SingleComponent>() && hasComponent<T>())
@@ -29,11 +35,8 @@ class Entity(
         return component
     }
 
-    inline fun <reified T : Component> getComponent(): T? {
-        if (T::class == TransformComponent::class)
-            return transform as T
-        return components.filterIsInstance<T>().firstOrNull()
-    }
+    inline fun <reified T : Component> getComponent() =
+        components.filterIsInstance<T>().firstOrNull()
 
     inline fun <reified T : Component> hasComponent() = getComponent<T>() != null
 

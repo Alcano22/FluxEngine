@@ -1,16 +1,19 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.Serializable
 import org.flux.core.renderer.Renderer2D
 import org.flux.core.renderer.Renderer3D
 import org.flux.core.util.Timestep
 
+@Serializable
 class Scene {
 
-    @PublishedApi
-    internal val entities = mutableListOf<Entity>()
+    val entities = mutableListOf<Entity>()
 
     fun createEntity(name: String = "Unnamed Entity"): Entity {
-        val entity = Entity(name, this)
+        val entity = Entity(name)
+        entity.scene = this
+        entity.addComponent(TransformComponent())
         entities.add(entity)
         return entity
     }

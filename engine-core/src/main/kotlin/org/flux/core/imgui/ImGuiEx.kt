@@ -2,14 +2,33 @@ package org.flux.core.imgui
 
 import imgui.ImGui
 import imgui.flag.ImGuiColorEditFlags
+import imgui.flag.ImGuiInputTextFlags
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
+import imgui.type.ImString
 import org.flux.core.util.toArray
 import org.joml.*
 import kotlin.reflect.KMutableProperty0
 
 object ImGuiEx {
+
+    val contentRegionAvailX get() = ImGui.getContentRegionAvailX()
+    val contentRegionAvailY get() = ImGui.getContentRegionAvailY()
+    val contentRegionAvail get() = Vector2f(contentRegionAvailX, contentRegionAvailY)
+
+    var cursorPosX: Float
+        get() = ImGui.getCursorPosX()
+        set(value) = ImGui.setCursorPosX(value)
+
+    var cursorPosY: Float
+        get() = ImGui.getCursorPosY()
+        set(value) = ImGui.setCursorPosY(value)
+
+    val cursorPos get() = Vector2f(cursorPosX, cursorPosY)
+
+    fun setCursorPos(x: Float, y: Float) = ImGui.setCursorPos(x, y)
+    fun setCursorPos(pos: Vector2fc) = setCursorPos(pos.x(), pos.y())
 
     inline fun window(
         name: String,
@@ -50,6 +69,16 @@ object ImGuiEx {
         }
     }
 
+    inline fun menuBar(content: ImGuiEx.() -> Unit) {
+        if (ImGui.beginMenuBar()) {
+            try {
+                content()
+            } finally {
+                ImGui.endMenuBar()
+            }
+        }
+    }
+
     inline fun menu(
         label: String,
         enabled: Boolean = true,
@@ -62,6 +91,31 @@ object ImGuiEx {
                 ImGui.endMenu()
             }
         }
+    }
+
+    inline fun menuItem(
+        label: String,
+        content: ImGuiEx.() -> Unit
+    ) {
+        if (ImGui.menuItem(label))
+            content()
+    }
+
+    inline fun inputText(
+        label: String,
+        property: KMutableProperty0<String>,
+        bufferSize: Int = 256,
+        flags: Int = ImGuiInputTextFlags.None,
+        onChanged: (String) -> Unit = {}
+    ): Boolean {
+        val buf = ImString(bufferSize).also { it.set(property.get()) }
+        val changed = ImGui.inputText(label, buf, flags)
+        if (changed) {
+            val newValue = buf.get()
+            property.set(newValue)
+            onChanged(newValue)
+        }
+        return changed
     }
 
     inline fun checkbox(
@@ -299,5 +353,99 @@ object ImGuiEx {
             onChanged(value)
         }
         return changed
+    }
+
+    inline fun <reified T : Enum<T>> enumCombo(
+        label: String,
+        property: KMutableProperty0<T>,
+        noinline nameSelector: (T) -> String = { it.name },
+        noinline onChanged: (T) -> Unit = {}
+    ): Boolean {
+        var changed = false
+        val currentValue = property.get()
+        val enumValues = enumValues<T>()
+
+        if (ImGui.beginCombo(label, nameSelector(currentValue))) {
+            try {
+                for (value in enumValues) {
+                    val isSelected = (value == currentValue)
+
+                    if (ImGui.selectable(nameSelector(value), isSelected)) {
+                        property.set(value)
+                        onChanged(value)
+                        changed = true
+                    }
+
+                    if (isSelected)
+                        ImGui.setItemDefaultFocus()
+                }
+            } finally {
+                ImGui.endCombo()
+            }
+        }
+        return changed
+    }
+
+    fun image(
+        textureId: Int,
+        size: Vector2fc,
+        uv0: Vector2fc = Vector2f(0f, 0f),
+        uv1: Vector2fc = Vector2f(1f, 1f)
+    ) = ImGui.image(textureId.toLong(), size.x(), size.y(), uv0.x(), uv0.y(), uv1.x(), uv1.y())
+
+    fun imageFlipped(
+        textureId: Int,
+        width: Float,
+        height: Float
+    ) = ImGui.image(textureId.toLong(), width, height, 0f, 1f, 1f, 0f)
+
+    fun imageFlipped(
+        textureId: Int,
+        size: Vector2fc
+    ) = imageFlipped(textureId, size.x(), size.y())
+
+    inline fun styleVar(idx: Int, value: Float, content: ImGuiEx.() -> Unit) {
+        ImGui.pushStyleVar(idx, value)
+        try {
+            content()
+        } finally {
+            ImGui.popStyleVar()
+        }
+    }
+
+    inline fun styleVar(idx: Int, x: Float, y: Float, content: ImGuiEx.() -> Unit) {
+        ImGui.pushStyleVar(idx, x, y)
+        try {
+            content()
+        } finally {
+            ImGui.popStyleVar()
+        }
+    }
+
+    inline fun styleColor(idx: Int, r: Float, g: Float, b: Float, a: Float, content: ImGuiEx.() -> Unit) {
+        ImGui.pushStyleColor(idx, r, g, b, a)
+        try {
+            content()
+        } finally {
+            ImGui.popStyleColor()
+        }
+    }
+
+    inline fun styleColor(idx: Int, color: Int, content: ImGuiEx.() -> Unit) {
+        ImGui.pushStyleColor(idx, color)
+        try {
+            content()
+        } finally {
+            ImGui.popStyleColor()
+        }
+    }
+
+    inline fun itemWidth(width: Float, content: ImGuiEx.() -> Unit) {
+        ImGui.pushItemWidth(width)
+        try {
+            content()
+        } finally {
+            ImGui.popItemWidth()
+        }
     }
 }

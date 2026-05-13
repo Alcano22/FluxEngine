@@ -1,26 +1,27 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.joml.Matrix4f
 import org.joml.Vector3f
-import org.joml.Vector3fc
 
+@Serializable
+@SerialName("TransformComponent")
 @SingleComponent
 class TransformComponent(
-    position: Vector3fc = Vector3f(0f),
-    rotation: Vector3fc = Vector3f(0f),
-    scale: Vector3fc = Vector3f(1f)
+    @Contextual var position: Vector3f = Vector3f(0f),
+    @Contextual var rotation: Vector3f = Vector3f(0f),
+    @Contextual var scale: Vector3f = Vector3f(1f)
 ) : Component() {
 
-    val position = Vector3f(position)
-    val rotation = Vector3f(rotation)
-    val scale = Vector3f(scale)
+    @Transient private val lastPosition = Vector3f(position)
+    @Transient private val lastRotation = Vector3f(rotation)
+    @Transient private val lastScale = Vector3f(scale)
 
-    private val lastPosition = Vector3f(position)
-    private val lastRotation = Vector3f(rotation)
-    private val lastScale = Vector3f(scale)
-
-    private val _matrix = Matrix4f()
-    private var isDirty = true
+    @Transient private val _matrix = Matrix4f()
+    @Transient private var isDirty = true
 
     val matrix: Matrix4f
         get() {

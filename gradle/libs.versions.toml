@@ -1,12 +1,16 @@
 [versions]
-kotlin  = "1.9.24"
-lwjgl   = "3.4.1"
-joml    = "1.10.5"
-jamepad = "2.30.0.0"
-imgui   = "1.90.0"
+kotlin               = "1.9.24"
+kotlinxSerialization = "1.6.3"
+lwjgl                = "3.4.1"
+joml                 = "1.10.5"
+jamepad              = "2.30.0.0"
+imgui                = "1.90.0"
+reflections          = "0.10.2"
 
 [libraries]
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 joml = { module = "org.joml:joml", version.ref = "joml" }
 
@@ -22,5 +26,9 @@ imgui-binding         = { module = "io.github.spair:imgui-java-binding",        
 imgui-lwjgl3          = { module = "io.github.spair:imgui-java-lwjgl3",          version.ref = "imgui" }
 imgui-natives-windows = { module = "io.github.spair:imgui-java-natives-windows", version.ref = "imgui" }
 
+reflections = { module = "org.reflections:reflections", version.ref = "reflections" }
+
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

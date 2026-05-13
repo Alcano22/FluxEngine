@@ -1,13 +1,19 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.flux.core.renderer.Renderer2D
 import org.flux.core.renderer.Texture2D
 import org.joml.Vector4f
 
+@Serializable
+@SerialName("SpriteRendererComponent")
 @SingleComponent
 class SpriteRendererComponent(
-    var texture: Texture2D? = null,
-    var color: Vector4f = Vector4f(1f)
+    @Transient var texture: Texture2D? = null,
+    @Contextual var color: Vector4f = Vector4f(1f)
 ) : Component() {
 
     override fun onRender2D() {

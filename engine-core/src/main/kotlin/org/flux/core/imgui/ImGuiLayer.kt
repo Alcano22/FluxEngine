@@ -34,7 +34,7 @@ class ImGuiLayer(
 
         try {
             val fontData = AssetManager.getFont("fonts/Inter_18pt-Regular.ttf", location = AssetLocation.INTERNAL)
-            io.fonts.addFontFromMemoryTTF(fontData, 18f, fontCfg)
+            io.fonts.addFontFromMemoryTTF(fontData, 16f, fontCfg)
             io.fonts.build()
         } catch (e: Exception) {
             println("Warning: Could not load font, falling back to default. Error: ${e.message}")

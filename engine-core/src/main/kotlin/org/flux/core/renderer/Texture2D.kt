@@ -18,6 +18,11 @@ interface Texture2D : Texture {
             path: String,
             filter: TextureFilter = TextureFilter.LINEAR
         ) = Renderer.createTexture2D(path, filter)
+
+        fun create(
+            bytes: ByteArray,
+            filter: TextureFilter = TextureFilter.LINEAR
+        ) = Renderer.createTexture2D(bytes, filter)
     }
 
     fun setData(data: ByteArray)

@@ -1,12 +1,15 @@
 package org.flux.core.imgui
 
 import imgui.ImGui
+import imgui.extension.imguizmo.ImGuizmo
 import imgui.flag.ImGuiColorEditFlags
 import imgui.flag.ImGuiInputTextFlags
+import imgui.flag.ImGuiMouseButton
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
 import imgui.type.ImString
+import org.flux.core.util.Color
 import org.flux.core.util.toArray
 import org.joml.*
 import kotlin.reflect.KMutableProperty0
@@ -340,6 +343,23 @@ object ImGuiEx {
         return changed
     }
 
+    inline fun colorEdit3(
+        label: String,
+        value: Color,
+        flags: Int = ImGuiColorEditFlags.None,
+        onChanged: (Color) -> Unit = {}
+    ): Boolean {
+        val tmp = floatArrayOf(value.r, value.g, value.b)
+        val changed = ImGui.colorEdit3(label, tmp, flags)
+        if (changed) {
+            value.r = tmp[0]
+            value.g = tmp[1]
+            value.b = tmp[2]
+            onChanged(value)
+        }
+        return changed
+    }
+
     inline fun colorEdit4(
         label: String,
         value: Vector4f,
@@ -350,6 +370,24 @@ object ImGuiEx {
         val changed = ImGui.colorEdit4(label, tmp, flags)
         if (changed) {
             value.set(tmp)
+            onChanged(value)
+        }
+        return changed
+    }
+
+    inline fun colorEdit4(
+        label: String,
+        value: Color,
+        flags: Int = ImGuiColorEditFlags.None,
+        onChanged: (Color) -> Unit = {}
+    ): Boolean {
+        val tmp = floatArrayOf(value.r, value.g, value.b, value.a)
+        val changed = ImGui.colorEdit3(label, tmp, flags)
+        if (changed) {
+            value.r = tmp[0]
+            value.g = tmp[1]
+            value.b = tmp[2]
+            value.a = tmp[3]
             onChanged(value)
         }
         return changed
@@ -403,6 +441,32 @@ object ImGuiEx {
         textureId: Int,
         size: Vector2fc
     ) = imageFlipped(textureId, size.x(), size.y())
+
+    inline fun iconButton(
+        textureId: Int,
+        screenPos: Vector2fc,
+        size: Float = 32f,
+        onClick: () -> Unit
+    ): Boolean {
+        val drawList = ImGui.getWindowDrawList()
+        val halfSize = size / 2f
+
+        val minX = screenPos.x() - halfSize
+        val minY = screenPos.y() - halfSize
+        val maxX = screenPos.x() + halfSize
+        val maxY = screenPos.y() + halfSize
+
+        drawList.addImage(textureId.toLong(), minX, minY, maxX, maxY)
+
+        val mouseX = ImGui.getMousePosX()
+        val mouseY = ImGui.getMousePosY()
+        val isMouseClicked = ImGui.isMouseClicked(ImGuiMouseButton.Left) && !ImGuizmo.isOver()
+        if (isMouseClicked && (mouseX in minX..maxX) && (mouseY in minY..maxY)) {
+            onClick()
+            return true
+        } else
+            return false
+    }
 
     inline fun styleVar(idx: Int, value: Float, content: ImGuiEx.() -> Unit) {
         ImGui.pushStyleVar(idx, value)

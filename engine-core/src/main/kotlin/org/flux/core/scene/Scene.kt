@@ -1,9 +1,13 @@
 package org.flux.core.scene
 
 import kotlinx.serialization.Serializable
+import org.flux.core.renderer.Camera
+import org.flux.core.renderer.LightEnvironment
+import org.flux.core.renderer.PointLight2DData
 import org.flux.core.renderer.Renderer2D
 import org.flux.core.renderer.Renderer3D
 import org.flux.core.util.Timestep
+import org.joml.Vector2f
 
 @Serializable
 class Scene {
@@ -45,26 +49,65 @@ class Scene {
     fun findEntityByName(name: String): Entity? =
         entities.firstOrNull { it.name == name }
 
+    fun findEntityById(id: Int): Entity? =
+        entities.firstOrNull { it.id == id }
+
     fun onUpdate(ts: Timestep) {
         repeat(entities.size) { i ->
             entities[i].update(ts)
         }
     }
 
-    fun onRender() {
-        val mainCam = getComponentInScene<CameraComponent>()?.camera
-        if (mainCam == null) return
+    fun onRender(){
+        val mainCam = getComponentInScene<CameraComponent>()?.camera ?: return
+        render2D(mainCam)
+        render3D(mainCam)
+    }
 
-        Renderer2D.beginScene(mainCam)
-        repeat(entities.size) { i ->
-            entities[i].render2D()
-        }
+    fun onRenderWithCamera(camera: Camera) {
+        render2DUnlit(camera)
+        render3D(camera)
+    }
+
+    fun onRenderEntityIDs(camera: Camera) {
+        Renderer2D.beginSceneEntityID(camera)
+        repeat(entities.size) { i -> entities[i].render2D() }
         Renderer2D.endScene()
+    }
 
-        Renderer3D.beginScene(mainCam)
-        repeat(entities.size) { i ->
-            entities[i].render3D()
+    private fun render2D(camera: Camera) {
+        val lightComponents = findAllComponentsOfType<PointLight2DComponent>()
+        if (lightComponents.isEmpty())
+            Renderer2D.beginScene(camera)
+        else {
+            val env = LightEnvironment()
+            lightComponents.forEach { light ->
+                val pos = light.transform.position
+                env.pointLights.add(
+                    PointLight2DData(
+                        position  = Vector2f(pos.x, pos.y),
+                        color     = light.color,
+                        intensity = light.intensity,
+                        radius    = light.radius
+                    )
+                )
+            }
+            Renderer2D.beginScene(camera, env)
         }
+
+        repeat(entities.size) { i -> entities[i].render2D() }
+        Renderer2D.endScene()
+    }
+
+    private fun render2DUnlit(camera: Camera) {
+        Renderer2D.beginScene(camera)
+        repeat(entities.size) { i -> entities[i].render2D() }
+        Renderer2D.endScene()
+    }
+
+    private fun render3D(camera: Camera) {
+        Renderer3D.beginScene(camera)
+        repeat(entities.size) { i -> entities[i].render3D() }
         Renderer3D.endScene()
     }
 

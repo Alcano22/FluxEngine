@@ -12,12 +12,15 @@ import org.flux.core.event.GamepadDisconnectedEvent
 import org.flux.core.input.GamepadAxis
 import org.flux.core.input.GamepadButton
 import org.flux.core.input.Input
+import org.flux.core.logging.logger
 import kotlin.math.abs
 
 class GamepadTracker(private val eventCallback: (Event) -> Unit) {
 
     companion object {
         private const val MAX_GAMEPADS = 4
+
+        private val logger = logger()
     }
 
     private val controllerManager = ControllerManager(
@@ -40,7 +43,7 @@ class GamepadTracker(private val eventCallback: (Event) -> Unit) {
                     val controller = controllerManager.getControllerIndex(id)
                     controller.doVibration(left, right, durationMs)
                 } catch (e: Exception) {
-                    println("Failed to rumble gamepad $id: ${e.message}")
+                    logger.error { "Failed to rumble gamepad $id: ${e.message}" }
                 }
             }
         }

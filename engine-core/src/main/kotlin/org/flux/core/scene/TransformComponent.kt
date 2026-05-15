@@ -1,5 +1,6 @@
 package org.flux.core.scene
 
+import imgui.extension.imguizmo.ImGuizmo
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -21,7 +22,7 @@ class TransformComponent(
     @Transient private val lastScale = Vector3f(scale)
 
     @Transient private val _matrix = Matrix4f()
-    @Transient private var isDirty = true
+    @Transient @HideInInspector var isDirty = true
 
     val matrix: Matrix4f
         get() {
@@ -43,5 +44,4 @@ class TransformComponent(
 
             return _matrix
         }
-
 }

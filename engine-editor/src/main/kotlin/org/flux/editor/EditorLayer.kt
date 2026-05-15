@@ -1,18 +1,25 @@
 package org.flux.editor
 
 import imgui.ImGui
+import imgui.extension.imguizmo.ImGuizmo
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.layer.Layer
+import org.flux.core.logging.logger
 import org.flux.core.scene.CameraComponent
+import org.flux.core.scene.PointLight2DComponent
 import org.flux.core.scene.Scene
 import org.flux.core.scene.SpriteRendererComponent
 import org.flux.core.serialization.SceneSerializer
+import org.flux.core.util.Color
 import org.flux.core.util.Timestep
+import org.flux.editor.panel.ConsolePanel
 import org.flux.editor.panel.EditorManager
 import org.flux.editor.panel.InspectorPanel
 import org.flux.editor.panel.SceneHierarchyPanel
+import org.flux.editor.panel.ScenePanel
 import org.flux.editor.panel.ViewportPanel
 import org.flux.editor.util.SelectionManager
+import org.joml.Vector3f
 import java.io.File
 
 class EditorLayer : Layer("EditorLayer") {
@@ -30,9 +37,28 @@ class EditorLayer : Layer("EditorLayer") {
             })
         }
 
+        sceneContext.scene.createEntity("Point Light").apply {
+            addComponent(PointLight2DComponent(
+                intensity = 1.5f,
+                radius    = 3f,
+                color     = Color(1f, 0.9f, 0.7f)
+            ))
+            transform.position.set(1f, 0f, 0f)
+        }
+
         editorManager.addPanel(SceneHierarchyPanel(sceneContext))
         editorManager.addPanel(InspectorPanel())
         editorManager.addPanel(ViewportPanel(sceneContext))
+        editorManager.addPanel(ScenePanel(sceneContext))
+        editorManager.addPanel(ConsolePanel())
+
+        logger().apply {
+            trace { "TEST" }
+            debug { "DEBUG" }
+            info { "INFO" }
+            warn { "WARN" }
+            error { "ERROR" }
+        }
     }
 
     override fun onDetach() {
@@ -46,10 +72,13 @@ class EditorLayer : Layer("EditorLayer") {
 
     override fun onRender() {
         editorManager.getPanel<ViewportPanel>()?.renderScene()
+        editorManager.getPanel<ScenePanel>()?.renderScene()
     }
 
     override fun onImGuiRender() {
         ImGui.dockSpaceOverViewport()
+
+        ImGuizmo.beginFrame()
 
         ImGuiEx.mainMenuBar {
             menu("File") {

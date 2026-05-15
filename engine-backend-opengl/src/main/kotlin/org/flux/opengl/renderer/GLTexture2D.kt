@@ -2,14 +2,22 @@ package org.flux.opengl.renderer
 
 import org.flux.core.renderer.Texture2D
 import org.flux.core.renderer.TextureFilter
+import org.flux.core.logging.logger
 import org.flux.core.util.memScoped
+import org.flux.core.logging.require
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL46C.*
 import org.lwjgl.stb.STBImage.*
+import org.lwjgl.system.MemoryUtil
+import java.nio.ByteBuffer
 
 class GLTexture2D : Texture2D {
 
-    private val rendererId: Int
+    companion object {
+        val logger = logger()
+    }
+
+    override val rendererId: Int
 
     override val width: Int
     override val height: Int
@@ -45,7 +53,7 @@ class GLTexture2D : Texture2D {
 
             stbi_set_flip_vertically_on_load(true)
             val pixels = stbi_load(path, w, h, channels, 0)
-                ?: throw RuntimeException("Failed to load texture: $path:\n${stbi_failure_reason()}")
+                ?: throw logger.throwing(RuntimeException("Failed to load texture: $path:\n${stbi_failure_reason()}"))
             stbi_set_flip_vertically_on_load(false)
 
             tmpWidth = w[0]
@@ -60,7 +68,7 @@ class GLTexture2D : Texture2D {
                     internalFormat = GL_RGB8
                     dataFormat = GL_RGB
                 }
-                else -> throw RuntimeException("Unsupported number of channels: ${channels[0]}")
+                else -> throw logger.throwing(RuntimeException("Unsupported number of channels: ${channels[0]}"))
             }
 
             tmpId = glCreateTextures(GL_TEXTURE_2D)
@@ -82,6 +90,67 @@ class GLTexture2D : Texture2D {
         height = tmpHeight
     }
 
+    constructor(bytes: ByteArray, filter: TextureFilter = TextureFilter.LINEAR) {
+        var tmpId = 0
+        var tmpWidth = 0
+        var tmpHeight = 0
+
+        var buffer: ByteBuffer? = null
+        try {
+            buffer = MemoryUtil.memAlloc(bytes.size)
+                .put(bytes)
+                .flip()
+
+            memScoped {
+                val w = mallocInt(1)
+                val h = mallocInt(1)
+                val channels = mallocInt(1)
+
+                stbi_set_flip_vertically_on_load(true)
+                val pixels = stbi_load_from_memory(buffer, w, h, channels, 0)
+                    ?: throw logger.throwing(
+                        RuntimeException("Failed to load texture from memory:\n${stbi_failure_reason()}")
+                    )
+                stbi_set_flip_vertically_on_load(false)
+
+                tmpWidth = w[0]
+                tmpHeight = h[0]
+
+                when (channels[0]) {
+                    4 -> {
+                        internalFormat = GL_RGBA8
+                        dataFormat = GL_RGBA
+                    }
+                    3 -> {
+                        internalFormat = GL_RGB8
+                        dataFormat = GL_RGB
+                    }
+                    else -> throw logger.throwing(RuntimeException("Unsupported number of channels: ${channels[0]}"))
+                }
+
+                tmpId = glCreateTextures(GL_TEXTURE_2D)
+                glTextureStorage2D(tmpId, 1, internalFormat, tmpWidth, tmpHeight)
+
+                val glFilter = filter.toGL()
+                glTextureParameteri(tmpId, GL_TEXTURE_MIN_FILTER, glFilter)
+                glTextureParameteri(tmpId, GL_TEXTURE_MAG_FILTER, glFilter)
+                glTextureParameteri(tmpId, GL_TEXTURE_WRAP_S, GL_REPEAT)
+                glTextureParameteri(tmpId, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+                glTextureSubImage2D(tmpId, 0, 0, 0, tmpWidth, tmpHeight, dataFormat, GL_UNSIGNED_BYTE, pixels)
+
+                stbi_image_free(pixels)
+            }
+        } finally {
+            if (buffer != null)
+                MemoryUtil.memFree(buffer)
+        }
+
+        rendererId = tmpId
+        width = tmpWidth
+        height = tmpHeight
+    }
+
     private fun TextureFilter.toGL(): Int = when (this) {
         TextureFilter.LINEAR  -> GL_LINEAR
         TextureFilter.NEAREST -> GL_NEAREST
@@ -89,7 +158,7 @@ class GLTexture2D : Texture2D {
 
     override fun setData(data: ByteArray) {
         val bpp = if (dataFormat == GL_RGBA) 4 else 3
-        require(data.size == width * height * bpp) {
+        logger.require(data.size == width * height * bpp) {
             "Data size does not match texture dimensions"
         }
 

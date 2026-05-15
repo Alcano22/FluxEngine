@@ -74,6 +74,11 @@ object Renderer : Disposable {
         filter: TextureFilter
     ) = factory.createTexture2D(path, filter)
 
+    fun createTexture2D(
+        bytes: ByteArray,
+        filter: TextureFilter
+    ) = factory.createTexture2D(bytes, filter)
+
     fun createFramebuffer(spec: FramebufferSpecification) = factory.createFramebuffer(spec)
 
     override fun dispose() {

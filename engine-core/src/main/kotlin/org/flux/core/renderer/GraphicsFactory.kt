@@ -14,6 +14,7 @@ interface GraphicsFactory {
 
     fun createTexture2D(width: Int, height: Int, filter: TextureFilter): Texture2D
     fun createTexture2D(path: String, filter: TextureFilter): Texture2D
+    fun createTexture2D(bytes: ByteArray, filter: TextureFilter): Texture2D
 
     fun createFramebuffer(spec: FramebufferSpecification): Framebuffer
 }

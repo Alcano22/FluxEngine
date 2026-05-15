@@ -4,6 +4,8 @@ import org.flux.core.renderer.Shader
 import org.flux.core.renderer.Texture2D
 import org.flux.core.renderer.TextureFilter
 import org.flux.core.util.Disposable
+import org.flux.core.logging.logger
+import org.flux.core.logging.require
 import java.io.File
 
 enum class AssetLocation {
@@ -12,6 +14,8 @@ enum class AssetLocation {
 }
 
 object AssetManager : Disposable {
+
+    private val logger = logger()
 
     private val textCache = mutableMapOf<String, String>()
     private val byteCache = mutableMapOf<String, ByteArray>()
@@ -24,12 +28,14 @@ object AssetManager : Disposable {
             when (location) {
                 AssetLocation.INTERNAL -> {
                     val stream = AssetManager::class.java.classLoader.getResourceAsStream(path)
-                        ?: throw IllegalArgumentException("Internal asset not found: $path")
+                        ?: throw logger.throwing(
+                            IllegalArgumentException("Internal asset not found: $path")
+                        )
                     stream.use { it.readAllBytes() }
                 }
                 AssetLocation.EXTERNAL -> {
                     val file = File(path)
-                    require(file.exists()) { "External asset not found: $path" }
+                    logger.require(file.exists()) { "External asset not found: $path" }
                     file.readBytes()
                 }
             }
@@ -42,12 +48,14 @@ object AssetManager : Disposable {
             when (location) {
                 AssetLocation.INTERNAL -> {
                     val stream = AssetManager::class.java.classLoader.getResourceAsStream(path)
-                        ?: throw IllegalArgumentException("Internal asset not found: $path")
+                        ?: throw logger.throwing(
+                            IllegalArgumentException("Internal asset not found: $path")
+                        )
                     stream.bufferedReader().use { it.readText() }
                 }
                 AssetLocation.EXTERNAL -> {
                     val file = File(path)
-                    require(file.exists()) { "External asset not found: $path" }
+                    logger.require(file.exists()) { "External asset not found: $path" }
                     file.readText()
                 }
             }
@@ -75,12 +83,12 @@ object AssetManager : Disposable {
         return textureCache.getOrPut(key) {
             when (location) {
                 AssetLocation.INTERNAL -> {
-                    throw NotImplementedError("Internal textures are not supported yet")
+                    val bytes = readBytes(path, location)
+                    Texture2D.create(bytes, filter)
                 }
                 AssetLocation.EXTERNAL -> {
                     val file = File(path)
-                    require(file.exists()) { "Texture not found: $path" }
-
+                    logger.require(file.exists()) { "Texture not found: $path" }
                     Texture2D.create(path, filter)
                 }
             }

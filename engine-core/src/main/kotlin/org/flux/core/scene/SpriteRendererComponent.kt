@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.flux.core.renderer.Renderer2D
 import org.flux.core.renderer.Texture2D
+import org.flux.core.util.Color
 import org.joml.Vector4f
 
 @Serializable
@@ -13,10 +14,10 @@ import org.joml.Vector4f
 @SingleComponent
 class SpriteRendererComponent(
     @Transient var texture: Texture2D? = null,
-    @Contextual var color: Vector4f = Vector4f(1f)
+    @Contextual var color: Color = Color.White
 ) : Component() {
 
     override fun onRender2D() {
-        Renderer2D.drawQuad(transform.matrix, texture, color)
+        Renderer2D.drawQuad(transform.matrix, texture, color, entity.id)
     }
 }

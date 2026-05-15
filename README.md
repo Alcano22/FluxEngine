@@ -17,7 +17,9 @@ to gain a practical understanding of complex system structures and memory manage
 * [x] Established core architecture with modular design
 * [x] Implemented basic rendering pipeline using OpenGL
 * [x] Integrated ImGui for in-engine debugging and UI development
-* [ ] Separate module for editor application
+* [x] Separate module for editor application
+* [ ] Scripting with Lua
+* [ ] Game Deployment
 
 ## Glimpse into the Sandbox
 ![Sandbox Screenshot](images/preview.png)

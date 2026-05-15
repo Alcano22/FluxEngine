@@ -13,9 +13,11 @@ class EditorApp(window: Window) : Application(window) {
 }
 
 fun main() {
-    try {
-        System.loadLibrary("nvapi64")
-    } catch (_: Exception) {}
+    if (System.getProperty("os.name").contains("windows", ignoreCase = true)) {
+        try {
+            System.loadLibrary("nvapi64")
+        } catch (_: Exception) {}
+    }
 
     FluxEngine.builder()
         .useGLFW(width = 1280, height = 720, title = "Flux Editor")

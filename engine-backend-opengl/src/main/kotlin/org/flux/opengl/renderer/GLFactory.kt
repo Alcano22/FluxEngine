@@ -41,5 +41,10 @@ class GLFactory : GraphicsFactory {
         filter: TextureFilter
     ): Texture2D = GLTexture2D(path, filter)
 
+    override fun createTexture2D(
+        bytes: ByteArray,
+        filter: TextureFilter
+    ): Texture2D = GLTexture2D(bytes, filter)
+
     override fun createFramebuffer(spec: FramebufferSpecification): Framebuffer = GLFramebuffer(spec)
 }

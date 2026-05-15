@@ -2,6 +2,7 @@ package org.flux.core.renderer
 
 import org.flux.core.asset.AssetLocation
 import org.flux.core.asset.AssetManager
+import org.flux.core.util.Color
 import org.flux.core.util.Disposable
 import org.joml.*
 
@@ -23,13 +24,18 @@ object Renderer2D : Disposable {
     private const val MAX_QUADS = 10_000
     private const val MAX_VERTICES = MAX_QUADS * 4
     private const val MAX_INDICES = MAX_QUADS * 6
+    private const val MAX_LIGHTS = 16
+    private const val VERTEX_SIZE = 11
 
     private lateinit var quadVertexArray: VertexArray
     private lateinit var quadVertexBuffer: VertexBuffer
-    private lateinit var textureShader: Shader
+    private lateinit var unlitShader: Shader
+    private lateinit var litShader: Shader
+    private lateinit var entityIdShader: Shader
+    private lateinit var activeShader: Shader
     private lateinit var whiteTexture: Texture2D
 
-    private val quadVertexData = FloatArray(MAX_VERTICES * 10)
+    private val quadVertexData = FloatArray(MAX_VERTICES * VERTEX_SIZE)
     private var quadVertexPtr = 0
     private var quadIndexCount = 0
 
@@ -57,22 +63,26 @@ object Renderer2D : Disposable {
         maxTextureSlots = RenderCommand.maxImageUnits.coerceAtMost(32)
         textureSlots = Array(maxTextureSlots) { null }
 
-        textureShader = AssetManager.getShader(
-            "shaders/Batch2D.glsl",
-            AssetLocation.INTERNAL,
-            mapOf(
-                "MAX_TEXTURE_SLOTS" to maxTextureSlots
-            )
+        val defines = mapOf(
+            "MAX_TEXTURE_SLOTS" to maxTextureSlots
         )
+
+        unlitShader = AssetManager.getShader("shaders/Unlit2D.glsl", AssetLocation.INTERNAL, defines)
+        litShader = AssetManager.getShader(
+            "shaders/Lit2D.glsl", AssetLocation.INTERNAL,
+            defines + mapOf("MAX_POINT_LIGHTS" to MAX_LIGHTS)
+        )
+        entityIdShader = AssetManager.getShader("shaders/EntityID.glsl", AssetLocation.INTERNAL)
 
         quadVertexArray = VertexArray.create()
 
-        quadVertexBuffer = VertexBuffer.create(MAX_VERTICES * 10 * Float.SIZE_BYTES)
+        quadVertexBuffer = VertexBuffer.create(MAX_VERTICES * VERTEX_SIZE * Float.SIZE_BYTES)
         quadVertexBuffer.layout = BufferLayout(
             BufferElement("a_Position", ShaderDataType.Float3),
             BufferElement("a_Color", ShaderDataType.Float4),
             BufferElement("a_TexCoord", ShaderDataType.Float2),
-            BufferElement("a_TexIndex", ShaderDataType.Float1)
+            BufferElement("a_TexIndex", ShaderDataType.Float1),
+            BufferElement("a_EntityID", ShaderDataType.Float1)
         )
         quadVertexArray.addVertexBuffer(quadVertexBuffer)
 
@@ -95,11 +105,46 @@ object Renderer2D : Disposable {
     }
 
     fun beginScene(camera: Camera) {
-        textureShader.bind()
-        textureShader.setMat4("u_ViewProjection", camera.viewProjMatrix)
+        activeShader = unlitShader
+        setupShader(camera)
+    }
 
-        val samplers = IntArray(maxTextureSlots) { it }
-        textureShader.setIntArray("u_Textures", samplers)
+    fun beginScene(camera: Camera, lights: LightEnvironment) {
+        activeShader = litShader
+        activeShader.bind()
+        activeShader.setMat4("u_ViewProjection", camera.viewProjMatrix)
+        activeShader.setIntArray("u_Textures", IntArray(maxTextureSlots) { it })
+
+        activeShader.setFloat3("u_AmbientColor", lights.ambientColor.toVector3f())
+        activeShader.setFloat("u_AmbientIntensity", lights.ambientIntensity)
+
+        val lightCount = lights.pointLights.size.coerceAtMost(MAX_LIGHTS)
+        activeShader.setInt("u_LightCount", lightCount)
+
+        lights.pointLights.take(MAX_LIGHTS).forEachIndexed { i, light ->
+            activeShader.setFloat2("u_Lights[$i].position", light.position)
+            activeShader.setFloat3("u_Lights[$i].color", light.color.toVector3f())
+            activeShader.setFloat("u_Lights[$i].intensity", light.intensity)
+            activeShader.setFloat("u_Lights[$i].radius", light.radius)
+        }
+
+        stats.reset()
+        startBatch()
+    }
+
+    fun beginSceneEntityID(camera: Camera) {
+        activeShader = entityIdShader
+        activeShader.bind()
+        activeShader.setMat4("u_ViewProjection", camera.viewProjMatrix)
+
+        stats.reset()
+        startBatch()
+    }
+
+    private fun setupShader(camera: Camera) {
+        activeShader.bind()
+        activeShader.setMat4("u_ViewProjection", camera.viewProjMatrix)
+        activeShader.setIntArray("u_Textures", IntArray(maxTextureSlots) { it })
 
         stats.reset()
         startBatch()
@@ -121,7 +166,6 @@ object Renderer2D : Disposable {
         repeat(textureSlotIndex) { i ->
             textureSlots[i]?.bind(i)
         }
-
         quadVertexBuffer.setData(quadVertexData.copyOfRange(0, quadVertexPtr))
         RenderCommand.drawIndexed(quadVertexArray, quadIndexCount)
         stats.drawCalls++
@@ -131,43 +175,48 @@ object Renderer2D : Disposable {
         position: Vector2fc,
         rotation: Float,
         size: Vector2fc,
-        color: Vector4fc
-    ) = drawQuad(Vector3f(position, 0f), rotation, size, null, color)
+        color: Color,
+        entityId: Int = -1
+    ) = drawQuad(Vector3f(position, 0f), rotation, size, null, color, entityId)
 
     fun drawQuad(
         position: Vector3fc,
         rotation: Float,
         size: Vector2fc,
-        color: Vector4fc
-    ) = drawQuad(position, rotation, size, null, color)
+        color: Color,
+        entityId: Int = -1
+    ) = drawQuad(position, rotation, size, null, color, entityId)
 
     fun drawQuad(
         position: Vector2fc,
         rotation: Float,
         size: Vector2fc,
         texture: Texture2D,
-        color: Vector4fc = Vector4f(1f)
-    ) = drawQuad(Vector3f(position, 0f), rotation, size, texture, color)
+        color: Color = Color.White,
+        entityId: Int = -1
+    ) = drawQuad(Vector3f(position, 0f), rotation, size, texture, color, entityId)
 
     fun drawQuad(
         position: Vector3fc,
         rotation: Float,
         size: Vector2fc,
         texture: Texture2D? = null,
-        color: Vector4fc = Vector4f(1f)
+        color: Color = Color.White,
+        entityId: Int = -1
     ) {
         val transform = Matrix4f()
             .translate(position)
             .rotateZ(rotation)
             .scaleXY(size.x(), size.y())
 
-        drawQuad(transform, texture, color)
+        drawQuad(transform, texture, color, entityId)
     }
 
     fun drawQuad(
         transform: Matrix4f,
         texture: Texture2D? = null,
-        color: Vector4fc = Vector4f(1f)
+        color: Color = Color.White,
+        entityId: Int = -1
     ) {
         if (quadIndexCount >= MAX_INDICES || textureSlotIndex >= maxTextureSlots) {
             flush()
@@ -197,15 +246,17 @@ object Renderer2D : Disposable {
             quadVertexData[quadVertexPtr++] = transformedPos.y
             quadVertexData[quadVertexPtr++] = transformedPos.z
 
-            quadVertexData[quadVertexPtr++] = color.x()
-            quadVertexData[quadVertexPtr++] = color.y()
-            quadVertexData[quadVertexPtr++] = color.z()
-            quadVertexData[quadVertexPtr++] = color.w()
+            quadVertexData[quadVertexPtr++] = color.r
+            quadVertexData[quadVertexPtr++] = color.g
+            quadVertexData[quadVertexPtr++] = color.b
+            quadVertexData[quadVertexPtr++] = color.a
 
             quadVertexData[quadVertexPtr++] = quadTexCoords[i].x
             quadVertexData[quadVertexPtr++] = quadTexCoords[i].y
 
             quadVertexData[quadVertexPtr++] = texIndex
+
+            quadVertexData[quadVertexPtr++] = entityId.toFloat()
         }
 
         quadIndexCount += 6

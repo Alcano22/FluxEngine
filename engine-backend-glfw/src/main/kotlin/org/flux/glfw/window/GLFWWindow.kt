@@ -1,6 +1,7 @@
 package org.flux.glfw.window
 
 import org.flux.core.event.*
+import org.flux.core.logging.logger
 import org.flux.core.util.nullptr
 import org.flux.core.window.Window
 import org.flux.glfw.input.GamepadTracker
@@ -13,6 +14,10 @@ class GLFWWindow(
     override val height: Int,
     val title: String
 ) : Window {
+
+    companion object {
+        private val logger = logger()
+    }
 
     private val handle: Long
 
@@ -30,7 +35,7 @@ class GLFWWindow(
 
     init {
         if (!glfwInit())
-            throw IllegalStateException("Unable to initialize GLFW")
+            throw logger.throwing(IllegalStateException("Unable to initialize GLFW"))
 
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
@@ -38,7 +43,7 @@ class GLFWWindow(
 
         handle = glfwCreateWindow(width, height, title, nullptr, nullptr)
         if (handle == nullptr)
-            throw RuntimeException("Failed to create GLFW window")
+            throw logger.throwing(RuntimeException("Failed to create GLFW window"))
 
         glfwMakeContextCurrent(handle)
         glfwSwapInterval(0)

@@ -3,12 +3,18 @@ package org.flux.core
 import org.flux.core.imgui.ImGuiLayer
 import org.flux.core.imgui.ImGuiPlatformBackend
 import org.flux.core.imgui.ImGuiRendererBackend
+import org.flux.core.logging.EngineLogger
 import org.flux.core.renderer.GraphicsFactory
 import org.flux.core.renderer.Renderer
 import org.flux.core.renderer.RendererAPI
+import org.flux.core.logging.logger
 import org.flux.core.window.Window
 
 class EngineBuilder {
+
+    companion object {
+        private val logger = logger()
+    }
 
     var window: Window? = null
     var rendererApi: RendererAPI? = null
@@ -18,9 +24,11 @@ class EngineBuilder {
     var imguiRendererBackend: ImGuiRendererBackend? = null
 
     fun run(appFactory: (Window) -> Application) {
-        val validWindow = window ?: throw IllegalStateException("Window backend not configured")
-        val api = rendererApi ?: throw IllegalStateException("Renderer backend not configured")
-        val factory = graphicsFactory ?: throw IllegalStateException("Graphics factory not configured")
+        val validWindow = window ?: throw logger.throwing(IllegalStateException("Window backend not configured"))
+        val api = rendererApi ?: throw logger.throwing(IllegalStateException("Renderer backend not configured"))
+        val factory = graphicsFactory ?: throw logger.throwing(IllegalStateException("Graphics factory not configured"))
+
+        EngineLogger.attachBridge()
 
         Renderer.init(api, factory)
 

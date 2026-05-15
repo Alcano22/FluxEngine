@@ -4,6 +4,8 @@ import org.flux.core.util.Disposable
 
 interface Texture : Disposable {
 
+    val rendererId: Int
+
     val width: Int
     val height: Int
 

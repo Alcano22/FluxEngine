@@ -4,9 +4,15 @@ import org.flux.core.renderer.IndexBuffer
 import org.flux.core.renderer.ShaderDataType
 import org.flux.core.renderer.VertexArray
 import org.flux.core.renderer.VertexBuffer
+import org.flux.core.logging.logger
+import org.flux.core.logging.require
 import org.lwjgl.opengl.GL46C.*
 
 class GLVertexArray : VertexArray {
+
+    companion object {
+        private val logger = logger()
+    }
 
     val rendererId = glCreateVertexArrays()
 
@@ -21,7 +27,7 @@ class GLVertexArray : VertexArray {
     override fun unbind() = glBindVertexArray(0)
 
     override fun addVertexBuffer(vertexBuffer: VertexBuffer) {
-        require(vertexBuffer.layout.elements.isNotEmpty()) { "VertexBuffer has no layout" }
+        logger.require(vertexBuffer.layout.elements.isNotEmpty()) { "VertexBuffer has no layout" }
 
         val bindingIndex = vertexBuffers.size
         glVertexArrayVertexBuffer(

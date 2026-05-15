@@ -3,11 +3,17 @@ package org.flux.opengl.renderer
 import org.flux.core.renderer.Framebuffer
 import org.flux.core.renderer.FramebufferSpecification
 import org.flux.core.renderer.FramebufferTextureFormat
+import org.flux.core.logging.logger
+import org.flux.core.logging.require
 import org.lwjgl.opengl.GL46C.*
 
 class GLFramebuffer(
     override var specification: FramebufferSpecification
 ) : Framebuffer {
+
+    companion object {
+        private val logger = logger()
+    }
 
     private var rendererId = 0
     private val colorAttachments = mutableListOf<Int>()
@@ -54,7 +60,7 @@ class GLFramebuffer(
             glNamedFramebufferDrawBuffer(rendererId, GL_NONE)
 
         val status = glCheckNamedFramebufferStatus(rendererId, GL_FRAMEBUFFER)
-        require(status == GL_FRAMEBUFFER_COMPLETE) {
+        logger.require(status == GL_FRAMEBUFFER_COMPLETE) {
             "Framebuffer $rendererId is incomplete: $status"
         }
     }
@@ -79,7 +85,9 @@ class GLFramebuffer(
                 glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
                 glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             }
-            else -> throw IllegalArgumentException("Format $format is not supported for color attachment")
+            else -> throw logger.throwing(
+                IllegalArgumentException("Format $format is not supported for color attachment")
+            )
         }
 
         glTextureParameteri(id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -114,6 +122,16 @@ class GLFramebuffer(
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
         return pixelData[0]
+    }
+
+    override fun setDrawBuffers(vararg attachmentIndices: Int) {
+        val buffers = IntArray(attachmentIndices.size) { GL_COLOR_ATTACHMENT0 + attachmentIndices[it] }
+        glNamedFramebufferDrawBuffers(rendererId, buffers)
+    }
+
+    override fun clearColorAttachmentInt(attachmentIndex: Int, value: Int) {
+        require(attachmentIndex < colorAttachments.size)
+        glClearNamedFramebufferiv(rendererId, GL_COLOR, attachmentIndex, intArrayOf(value))
     }
 
     override fun dispose() {

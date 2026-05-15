@@ -36,4 +36,8 @@ interface Framebuffer : Disposable {
     fun resize(width: Int, height: Int)
 
     fun readPixel(attachmentIndex: Int, x: Int, y: Int): Int
+
+    fun setDrawBuffers(vararg attachmentIndices: Int)
+
+    fun clearColorAttachmentInt(attachmentIndex: Int, value: Int)
 }

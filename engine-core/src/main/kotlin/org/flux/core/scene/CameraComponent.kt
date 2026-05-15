@@ -17,11 +17,10 @@ enum class CameraType {
 @SerialName("CameraComponent")
 @SingleComponent
 class CameraComponent(
-    @SerialName("type") private var _type: CameraType = CameraType.ORTHOGRAPHIC,
-    var isPrimary: Boolean = true
+    @SerialName("type") private var _type: CameraType = CameraType.ORTHOGRAPHIC
 ) : Component() {
 
-    var aspectRatio = 16f / 9f
+    @HideInInspector var aspectRatio = 16f / 9f
 
     var orthographicSize = 5f
 

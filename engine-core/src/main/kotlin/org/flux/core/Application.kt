@@ -8,6 +8,7 @@ import org.flux.core.imgui.ImGuiLayer
 import org.flux.core.input.Input
 import org.flux.core.layer.Layer
 import org.flux.core.layer.LayerStack
+import org.flux.core.logging.EngineLogger
 import org.flux.core.renderer.RenderCommand
 import org.flux.core.renderer.Renderer
 import org.flux.core.renderer.RendererAPI

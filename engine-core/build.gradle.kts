@@ -18,4 +18,7 @@ dependencies {
     api(libs.imgui.binding)
 
     implementation(libs.reflections)
+
+    api(libs.kotlinLogging)
+    api(libs.logback.classic)
 }

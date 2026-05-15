@@ -1,16 +1,18 @@
 package org.flux.opengl.renderer
 
 import org.flux.core.renderer.Shader
+import org.flux.core.logging.logger
 import org.flux.core.util.memScoped
 import org.joml.Matrix2fc
 import org.joml.Matrix3fc
 import org.joml.Matrix4fc
-import org.joml.Vector2ic
 import org.lwjgl.opengl.GL46C.*
 
 class GLShader : Shader {
 
     override val rendererId = glCreateProgram()
+
+    val logger = logger("$rendererId")
 
     private val uniformLocationCache = mutableMapOf<String, Int>()
 
@@ -39,7 +41,7 @@ class GLShader : Shader {
             glDeleteShader(vertexShader)
             glDeleteShader(fragmentShader)
 
-            throw RuntimeException("Failed to link shader:\n$log")
+            throw logger.throwing(RuntimeException("Failed to link:\n$log"))
         }
 
         glDetachShader(rendererId, vertexShader)
@@ -100,7 +102,7 @@ class GLShader : Shader {
                 GL_FRAGMENT_SHADER -> "fragment"
                 else -> "unknown"
             }
-            throw RuntimeException("Failed to compile $typeStr shader:\n$log")
+            throw logger.throwing(RuntimeException("Failed to compile ($typeStr):\n$log"))
         }
 
         return shader
@@ -115,7 +117,7 @@ class GLShader : Shader {
 
         val loc = glGetUniformLocation(rendererId, name)
         if (loc == -1)
-            println("Warning: Uniform '$name' doesn't exist in shader")
+            logger.warn { "Uniform '$name' doesn't exist" }
 
         uniformLocationCache[name] = loc
         return loc

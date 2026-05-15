@@ -8,6 +8,7 @@ imgui                = "1.90.0"
 reflections          = "0.10.2"
 kotlinLogging        = "6.0.9"
 logback              = "1.5.6"
+luaj                 = "3.0.1"
 
 [libraries]
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
@@ -34,6 +35,8 @@ reflections = { module = "org.reflections:reflections", version.ref = "reflectio
 
 kotlinLogging   = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
 logback-classic = { module = "ch.qos.logback:logback-classic",     version.ref = "logback" }
+
+luaj = { module = "org.luaj:luaj-jse", version.ref = "luaj" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

@@ -20,6 +20,9 @@ abstract class Component {
 
     open fun onAttach() {}
 
+    open fun onStart() {}
+    open fun onStop() {}
+
     open fun onUpdate(ts: Timestep) {}
     open fun onRender2D() {}
     open fun onRender3D() {}

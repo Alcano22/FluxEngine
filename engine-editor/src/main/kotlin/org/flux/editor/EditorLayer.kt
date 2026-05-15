@@ -5,6 +5,7 @@ import imgui.extension.imguizmo.ImGuizmo
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.layer.Layer
 import org.flux.core.logging.logger
+import org.flux.core.runtime.RuntimeState
 import org.flux.core.scene.CameraComponent
 import org.flux.core.scene.PointLight2DComponent
 import org.flux.core.scene.Scene
@@ -19,6 +20,7 @@ import org.flux.editor.panel.SceneHierarchyPanel
 import org.flux.editor.panel.ScenePanel
 import org.flux.editor.panel.ViewportPanel
 import org.flux.editor.util.SelectionManager
+import org.flux.scripting.LuaScriptComponent
 import org.joml.Vector3f
 import java.io.File
 
@@ -35,6 +37,7 @@ class EditorLayer : Layer("EditorLayer") {
             addComponent(SpriteRendererComponent().apply {
                 color.set(0.25f, 0.88f, 0.82f, 1f)
             })
+            addComponent(LuaScriptComponent("assets/scripts/player.lua"))
         }
 
         sceneContext.scene.createEntity("Point Light").apply {
@@ -51,14 +54,6 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.addPanel(ViewportPanel(sceneContext))
         editorManager.addPanel(ScenePanel(sceneContext))
         editorManager.addPanel(ConsolePanel())
-
-        logger().apply {
-            trace { "TEST" }
-            debug { "DEBUG" }
-            info { "INFO" }
-            warn { "WARN" }
-            error { "ERROR" }
-        }
     }
 
     override fun onDetach() {
@@ -66,7 +61,8 @@ class EditorLayer : Layer("EditorLayer") {
     }
 
     override fun onUpdate(ts: Timestep) {
-        sceneContext.scene.onUpdate(ts)
+        if (sceneContext.isPlaying)
+            sceneContext.scene.onUpdate(ts)
         editorManager.onUpdate(ts)
     }
 
@@ -96,8 +92,45 @@ class EditorLayer : Layer("EditorLayer") {
                     }
                 }
             }
+
+            ImGui.separator()
+            drawRuntimeToolbar()
         }
 
         editorManager.onImGuiRender()
+    }
+
+    private fun drawRuntimeToolbar() {
+        val state = sceneContext.runtimeState
+        when (state) {
+            RuntimeState.STOPPED -> {
+                if (ImGui.button("Play")) {
+                    sceneContext.play()
+                    editorManager.getPanel<ViewportPanel>()?.requestFocus()
+                }
+            }
+            RuntimeState.PLAYING -> {
+                if (ImGui.button("Pause"))
+                    sceneContext.pause()
+                ImGui.sameLine()
+                if (ImGui.button("Stop"))
+                    sceneContext.stop()
+            }
+            RuntimeState.PAUSED -> {
+                if (ImGui.button("Resume"))
+                    sceneContext.resume()
+                ImGui.sameLine()
+                if (ImGui.button("Stop"))
+                    sceneContext.stop()
+            }
+        }
+
+        ImGui.sameLine()
+        val (label, color) = when (state) {
+            RuntimeState.STOPPED -> "STOPPED" to ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1f)
+            RuntimeState.PLAYING -> "PLAYING" to ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.2f, 1f)
+            RuntimeState.PAUSED  -> "PAUSED"  to ImGui.colorConvertFloat4ToU32(0.9f, 0.7f, 0.1f, 1f)
+        }
+        ImGui.textColored(color, label)
     }
 }

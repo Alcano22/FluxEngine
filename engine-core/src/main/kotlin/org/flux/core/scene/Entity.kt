@@ -40,6 +40,18 @@ class Entity(
 
     inline fun <reified T : Component> hasComponent() = getComponent<T>() != null
 
+    internal fun start() {
+        repeat(components.size) { i ->
+            components[i].onStart()
+        }
+    }
+
+    internal fun stop() {
+        repeat(components.size) { i ->
+            components[i].onStop()
+        }
+    }
+
     internal fun update(ts: Timestep) {
         repeat(components.size) { i ->
             components[i].onUpdate(ts)

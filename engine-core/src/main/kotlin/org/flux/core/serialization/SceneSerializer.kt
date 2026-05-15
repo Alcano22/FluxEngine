@@ -12,6 +12,8 @@ import kotlinx.serialization.serializerOrNull
 import org.flux.core.scene.Component
 import org.flux.core.scene.Scene
 import org.reflections.Reflections
+import org.reflections.util.ClasspathHelper
+import org.reflections.util.ConfigurationBuilder
 import kotlin.reflect.KClass
 
 object SceneSerializer {
@@ -26,7 +28,11 @@ object SceneSerializer {
 
             serializersModule = SerializersModule {
                 polymorphic(Component::class) {
-                    val reflections = Reflections("org.flux")
+                    val reflections = Reflections(
+                        ConfigurationBuilder()
+                            .forPackages("org.flux")
+                            .addClassLoaders(Component::class.java.classLoader)
+                    )
                     val componentClasses = reflections.getSubTypesOf(Component::class.java)
 
                     for (cls in componentClasses) {

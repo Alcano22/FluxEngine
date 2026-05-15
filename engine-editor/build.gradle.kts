@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":engine-core"))
     implementation(project(":engine-backend-glfw"))
     implementation(project(":engine-backend-opengl"))
+    implementation(project(":engine-scripting"))
 
     implementation(platform(libs.lwjgl.bom))
     runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")

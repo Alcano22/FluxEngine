@@ -52,6 +52,18 @@ class Scene {
     fun findEntityById(id: Int): Entity? =
         entities.firstOrNull { it.id == id }
 
+    fun onStart() {
+        repeat(entities.size) { i ->
+            entities[i].start()
+        }
+    }
+
+    fun onStop() {
+        repeat(entities.size) { i ->
+            entities[i].stop()
+        }
+    }
+
     fun onUpdate(ts: Timestep) {
         repeat(entities.size) { i ->
             entities[i].update(ts)

@@ -11,9 +11,20 @@ abstract class EditorPanel(
 
     var isOpen = true
 
+    private var focusRequested = false
+
+    fun requestFocus() {
+        focusRequested = true
+    }
+
     open fun onUpdate(ts: Timestep) {}
 
     fun onImGuiRender() {
+        if (focusRequested) {
+            ImGui.setNextWindowFocus()
+            focusRequested = false
+        }
+
         if (noPadding)
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
         try {

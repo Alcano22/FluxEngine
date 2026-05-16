@@ -28,6 +28,9 @@ class ViewportPanel(private val sceneContext: SceneContext) : EditorPanel("Viewp
 
     var selectedAspectRatio = AspectRatio.RATIO_16_9
 
+    var isFocused = false
+        private set
+
     init {
         val spec = FramebufferSpecification(
             width = targetWidth.toInt(),
@@ -59,6 +62,8 @@ class ViewportPanel(private val sceneContext: SceneContext) : EditorPanel("Viewp
 
     override fun drawContent() {
         ImGuiEx.window(title, flags = ImGuiWindowFlags.MenuBar) {
+            isFocused = ImGui.isWindowFocused()
+
             menuBar {
                 itemWidth(100f) {
                     enumCombo(

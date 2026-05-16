@@ -104,6 +104,17 @@ object ImGuiEx {
             content()
     }
 
+    inline fun disabled(disabled: Boolean = true, block: () -> Unit) {
+        if (disabled)
+            ImGui.beginDisabled()
+        try {
+            block()
+        } finally {
+            if (disabled)
+                ImGui.endDisabled()
+        }
+    }
+
     inline fun inputText(
         label: String,
         property: KMutableProperty0<String>,

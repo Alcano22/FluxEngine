@@ -5,6 +5,7 @@ import imgui.extension.imguizmo.ImGuizmo
 import imgui.extension.imguizmo.flag.Mode
 import imgui.extension.imguizmo.flag.Operation
 import imgui.flag.ImGuiCol
+import imgui.flag.ImGuiKey
 import imgui.flag.ImGuiMouseButton
 import imgui.flag.ImGuiWindowFlags
 import org.flux.core.asset.AssetLocation
@@ -337,18 +338,18 @@ class ScenePanel(
             camera.recalculateProjection()
         }
 
-        if (Input.getKeyDown(Key.F)) {
+        if (ImGui.isKeyPressed(ImGuiKey.F)) {
             cameraPos.set(0f, 0f)
             camera.position = camera.position.set(0f, 0f, 0f)
             camera.size = 5f
             camera.recalculateProjection()
         }
 
-        if (Input.getKeyDown(Key.T))
+        if (ImGui.isKeyPressed(ImGuiKey.T))
             gizmoOperation = GizmoOperation.Translate
-        if (Input.getKeyDown(Key.R))
+        if (ImGui.isKeyPressed(ImGuiKey.R))
             gizmoOperation = GizmoOperation.Rotate
-        if (Input.getKeyDown(Key.S))
+        if (ImGui.isKeyPressed(ImGuiKey.S))
             gizmoOperation = GizmoOperation.Scale
     }
 

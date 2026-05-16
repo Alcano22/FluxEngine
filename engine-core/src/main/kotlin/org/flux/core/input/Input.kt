@@ -26,13 +26,15 @@ object Input {
 
     var rumbleCallback: ((id: Int, left: Float, right: Float, durationMs: Int) -> Unit)? = null
 
-    fun getKey(key: Key)     = key in keysPressed
-    fun getKeyDown(key: Key) = key in keysDown
-    fun getKeyUp(key: Key)   = key in keysUp
+    var blocked = false
 
-    fun getMouseButton(button: MouseButton)     = button in mouseButtonsPressed
-    fun getMouseButtonDown(button: MouseButton) = button in mouseButtonsDown
-    fun getMouseButtonUp(button: MouseButton)   = button in mouseButtonsUp
+    fun getKey(key: Key)     = if (blocked) false else key in keysPressed
+    fun getKeyDown(key: Key) = if (blocked) false else key in keysDown
+    fun getKeyUp(key: Key)   = if (blocked) false else key in keysUp
+
+    fun getMouseButton(button: MouseButton)     = if (blocked) false else button in mouseButtonsPressed
+    fun getMouseButtonDown(button: MouseButton) = if (blocked) false else button in mouseButtonsDown
+    fun getMouseButtonUp(button: MouseButton)   = if (blocked) false else button in mouseButtonsUp
 
     fun isGamepadConnected(id: Int) = connectedGamepads.containsKey(id)
     fun getGamepadName(id: Int) = connectedGamepads[id] ?: "Unknown Gamepad"

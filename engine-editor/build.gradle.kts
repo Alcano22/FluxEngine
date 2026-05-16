@@ -23,6 +23,8 @@ dependencies {
     implementation(project(":engine-backend-opengl"))
     implementation(project(":engine-scripting"))
 
+    implementation(libs.kotlinx.coroutines)
+
     implementation(platform(libs.lwjgl.bom))
     runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-glfw::$lwjglNatives")

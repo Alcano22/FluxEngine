@@ -3,6 +3,7 @@ package org.flux.core.imgui
 import imgui.ImGui
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImBoolean
+import imgui.type.ImString
 import org.flux.core.scene.Component
 import org.flux.core.scene.ExposeInInspector
 import org.flux.core.scene.HideInInspector
@@ -62,6 +63,12 @@ object ReflectionInspector {
                         val tmp = floatArrayOf(value)
                         if (ImGui.dragFloat(name, tmp, 0.1f))
                             mutProperty.set(component, tmp[0])
+                    }
+
+                    is String -> {
+                        val tmp = ImString(value, 256)
+                        if (ImGui.inputText(name, tmp))
+                            mutProperty.set(component, tmp.get())
                     }
 
                     is Vector2i -> ImGuiEx.dragInt2(name, value, 1f)

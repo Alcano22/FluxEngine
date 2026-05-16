@@ -2,7 +2,14 @@ package org.flux.editor
 
 import imgui.ImGui
 import imgui.extension.imguizmo.ImGuizmo
+import imgui.flag.ImGuiDockNodeFlags
+import imgui.flag.ImGuiStyleVar
+import imgui.flag.ImGuiWindowFlags
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.flux.core.imgui.ImGuiEx
+import org.flux.core.input.Input
 import org.flux.core.layer.Layer
 import org.flux.core.logging.logger
 import org.flux.core.runtime.RuntimeState
@@ -12,43 +19,34 @@ import org.flux.core.scene.Scene
 import org.flux.core.scene.SpriteRendererComponent
 import org.flux.core.serialization.SceneSerializer
 import org.flux.core.util.Color
+import org.flux.core.util.MainThreadQueue
 import org.flux.core.util.Timestep
-import org.flux.editor.panel.ConsolePanel
-import org.flux.editor.panel.EditorManager
-import org.flux.editor.panel.InspectorPanel
-import org.flux.editor.panel.SceneHierarchyPanel
-import org.flux.editor.panel.ScenePanel
-import org.flux.editor.panel.ViewportPanel
+import org.flux.editor.panel.*
 import org.flux.editor.util.SelectionManager
-import org.flux.scripting.LuaScriptComponent
-import org.joml.Vector3f
+import org.flux.scripting.compiler.ScriptCompiler
+import org.flux.scripting.loader.ScriptLoader
 import java.io.File
 
 class EditorLayer : Layer("EditorLayer") {
 
+    companion object {
+        private val scriptsDir = File("assets/scripts")
+        private val outputDir  = File(".flux/scripts/out")
+
+        private val logger = logger()
+    }
+
     private val editorManager = EditorManager()
     private val sceneContext = SceneContext(Scene())
 
+    private var isScriptingReady = false
+
     override fun onAttach() {
-        sceneContext.scene.createEntity("Main Camera").apply {
-            addComponent(CameraComponent())
-        }
-        sceneContext.scene.createEntity("Player").apply {
-            addComponent(SpriteRendererComponent().apply {
-                color.set(0.25f, 0.88f, 0.82f, 1f)
-            })
-            addComponent(LuaScriptComponent("assets/scripts/player.lua"))
-        }
+        setupEditor()
+        initScripting { setupScene() }
+    }
 
-        sceneContext.scene.createEntity("Point Light").apply {
-            addComponent(PointLight2DComponent(
-                intensity = 1.5f,
-                radius    = 3f,
-                color     = Color(1f, 0.9f, 0.7f)
-            ))
-            transform.position.set(1f, 0f, 0f)
-        }
-
+    private fun setupEditor() {
         editorManager.addPanel(SceneHierarchyPanel(sceneContext))
         editorManager.addPanel(InspectorPanel())
         editorManager.addPanel(ViewportPanel(sceneContext))
@@ -56,11 +54,67 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.addPanel(ConsolePanel())
     }
 
+    private fun setupScene() {
+        sceneContext.scene.apply {
+            createEntity("Main Camera").apply {
+                addComponent(CameraComponent())
+            }
+
+            createEntity("Player").apply {
+                addComponent(SpriteRendererComponent().apply {
+                    color.set(0.25f, 0.88f, 0.82f, 1f)
+                })
+                ScriptLoader.instantiateOrNull("PlayerScript")?.let { addComponent(it) }
+            }
+
+            createEntity("Point Light").apply {
+                addComponent(PointLight2DComponent(
+                    intensity = 1.5f,
+                    radius    = 3f,
+                    color     = Color(1f, 0.9f, 0.7f)
+                ))
+                transform.position.set(1f, 0f, 0f)
+            }
+        }
+    }
+
+    private fun initScripting(onReady: () -> Unit) {
+        scriptsDir.mkdirs()
+        outputDir.mkdirs()
+
+        val classpathJars = System.getProperty("java.class.path")
+            .split(File.pathSeparator)
+            .map { File(it) }
+            .filter { it.exists() }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val success = ScriptCompiler.compile(
+                scriptsDir    = scriptsDir,
+                outputDir     = outputDir,
+                classpathJars = classpathJars
+            )
+
+            if (success) {
+                ScriptLoader.init(outputDir)
+                MainThreadQueue.post(onReady)
+                logger.info { "Scripting initialized - ${scriptsDir.absolutePath}" }
+            } else
+                logger.error { "Script compilation failed - check errors above" }
+
+            isScriptingReady = success
+        }
+    }
+
     override fun onDetach() {
         editorManager.dispose()
     }
 
     override fun onUpdate(ts: Timestep) {
+        MainThreadQueue.flush()
+
+        val viewportFocused = editorManager.getPanel<ViewportPanel>()?.isFocused ?: false
+        Input.blocked = !viewportFocused || !sceneContext.isPlaying
+
         if (sceneContext.isPlaying)
             sceneContext.scene.onUpdate(ts)
         editorManager.onUpdate(ts)
@@ -72,7 +126,7 @@ class EditorLayer : Layer("EditorLayer") {
     }
 
     override fun onImGuiRender() {
-        ImGui.dockSpaceOverViewport()
+        drawDockSpace()
 
         ImGuizmo.beginFrame()
 
@@ -98,15 +152,44 @@ class EditorLayer : Layer("EditorLayer") {
         }
 
         editorManager.onImGuiRender()
+
+        StatusBar.render()
+    }
+
+    private fun drawDockSpace() {
+        val vp = ImGui.getMainViewport()
+
+        ImGui.setNextWindowPos(vp.posX, vp.posY)
+        ImGui.setNextWindowSize(vp.sizeX, vp.sizeY - StatusBar.HEIGHT)
+        ImGui.setNextWindowViewport(vp.id)
+
+        val flags = ImGuiWindowFlags.NoCollapse or
+                    ImGuiWindowFlags.NoResize or
+                    ImGuiWindowFlags.NoScrollbar or
+                    ImGuiWindowFlags.NoScrollWithMouse or
+                    ImGuiWindowFlags.NoMove or
+                    ImGuiWindowFlags.NoBringToFrontOnFocus or
+                    ImGuiWindowFlags.NoNav or
+                    ImGuiWindowFlags.NoSavedSettings
+
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0f)
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f)
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
+        ImGui.begin("##DockSpace", flags)
+        ImGui.popStyleVar(3)
+        ImGui.dockSpace(ImGui.getID("MainDockSpace"))
+        ImGui.end()
     }
 
     private fun drawRuntimeToolbar() {
         val state = sceneContext.runtimeState
         when (state) {
             RuntimeState.STOPPED -> {
-                if (ImGui.button("Play")) {
-                    sceneContext.play()
-                    editorManager.getPanel<ViewportPanel>()?.requestFocus()
+                ImGuiEx.disabled(!isScriptingReady) {
+                    if (ImGui.button("Play")) {
+                        sceneContext.play()
+                        editorManager.getPanel<ViewportPanel>()?.requestFocus()
+                    }
                 }
             }
             RuntimeState.PLAYING -> {

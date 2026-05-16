@@ -18,11 +18,11 @@ to gain a practical understanding of complex system structures and memory manage
 * [x] Implemented basic rendering pipeline using OpenGL
 * [x] Integrated ImGui for in-engine debugging and UI development
 * [x] Separate module for editor application
-* [ ] Scripting with Lua
+* [x] Scripting with Kotlin
 * [ ] Game Deployment
 
-## Glimpse into the Sandbox
-![Sandbox Screenshot](images/preview.png)
+## Glimpse into the Editor
+![Sandbox Screenshot](images/preview_editor.png)
 
 ## Why Kotlin?
 Kotlin allows me to design a modern, type-safe and

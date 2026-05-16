@@ -5,6 +5,8 @@ import org.flux.core.renderer.TextureFilter
 import org.flux.core.logging.logger
 import org.flux.core.util.memScoped
 import org.flux.core.logging.require
+import org.flux.core.renderer.TextureParams
+import org.flux.core.renderer.TextureWrap
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL46C.*
 import org.lwjgl.stb.STBImage.*
@@ -25,7 +27,7 @@ class GLTexture2D : Texture2D {
     private var internalFormat = 0
     private var dataFormat = 0
 
-    constructor(width: Int, height: Int, filter: TextureFilter) {
+    constructor(width: Int, height: Int, params: TextureParams) {
         this.width = width
         this.height = height
         internalFormat = GL_RGBA8
@@ -33,15 +35,10 @@ class GLTexture2D : Texture2D {
 
         rendererId = glCreateTextures(GL_TEXTURE_2D)
         glTextureStorage2D(rendererId, 1, internalFormat, width, height)
-
-        val glFilter = filter.toGL()
-        glTextureParameteri(rendererId, GL_TEXTURE_MIN_FILTER, glFilter)
-        glTextureParameteri(rendererId, GL_TEXTURE_MAG_FILTER, glFilter)
-        glTextureParameteri(rendererId, GL_TEXTURE_WRAP_S, GL_REPEAT)
-        glTextureParameteri(rendererId, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        applyParams(rendererId, params, hasMipmaps = false)
     }
 
-    constructor(path: String, filter: TextureFilter) {
+    constructor(path: String, params: TextureParams) {
         var tmpId = 0
         var tmpWidth = 0
         var tmpHeight = 0
@@ -71,16 +68,14 @@ class GLTexture2D : Texture2D {
                 else -> throw logger.throwing(RuntimeException("Unsupported number of channels: ${channels[0]}"))
             }
 
+            val levels = if (params.generateMipmaps) mipLevels(tmpWidth, tmpHeight) else 1
             tmpId = glCreateTextures(GL_TEXTURE_2D)
-            glTextureStorage2D(tmpId, 1, internalFormat, tmpWidth, tmpHeight)
-
-            val glFilter = filter.toGL()
-            glTextureParameteri(tmpId, GL_TEXTURE_MIN_FILTER, glFilter)
-            glTextureParameteri(tmpId, GL_TEXTURE_MAG_FILTER, glFilter)
-            glTextureParameteri(tmpId, GL_TEXTURE_WRAP_S, GL_REPEAT)
-            glTextureParameteri(tmpId, GL_TEXTURE_WRAP_T, GL_REPEAT)
-
+            glTextureStorage2D(tmpId, levels, internalFormat, tmpWidth, tmpHeight)
             glTextureSubImage2D(tmpId, 0, 0, 0, tmpWidth, tmpHeight, dataFormat, GL_UNSIGNED_BYTE, pixels)
+
+            if (params.generateMipmaps)
+                glGenerateTextureMipmap(tmpId)
+            applyParams(tmpId, params, hasMipmaps = params.generateMipmaps)
 
             stbi_image_free(pixels)
         }
@@ -90,7 +85,7 @@ class GLTexture2D : Texture2D {
         height = tmpHeight
     }
 
-    constructor(bytes: ByteArray, filter: TextureFilter = TextureFilter.LINEAR) {
+    constructor(bytes: ByteArray, params: TextureParams) {
         var tmpId = 0
         var tmpWidth = 0
         var tmpHeight = 0
@@ -128,16 +123,14 @@ class GLTexture2D : Texture2D {
                     else -> throw logger.throwing(RuntimeException("Unsupported number of channels: ${channels[0]}"))
                 }
 
+                val levels = if (params.generateMipmaps) mipLevels(tmpWidth, tmpHeight) else 1
                 tmpId = glCreateTextures(GL_TEXTURE_2D)
-                glTextureStorage2D(tmpId, 1, internalFormat, tmpWidth, tmpHeight)
-
-                val glFilter = filter.toGL()
-                glTextureParameteri(tmpId, GL_TEXTURE_MIN_FILTER, glFilter)
-                glTextureParameteri(tmpId, GL_TEXTURE_MAG_FILTER, glFilter)
-                glTextureParameteri(tmpId, GL_TEXTURE_WRAP_S, GL_REPEAT)
-                glTextureParameteri(tmpId, GL_TEXTURE_WRAP_T, GL_REPEAT)
-
+                glTextureStorage2D(tmpId, levels, internalFormat, tmpWidth, tmpHeight)
                 glTextureSubImage2D(tmpId, 0, 0, 0, tmpWidth, tmpHeight, dataFormat, GL_UNSIGNED_BYTE, pixels)
+
+                if (params.generateMipmaps)
+                    glGenerateTextureMipmap(tmpId)
+                applyParams(tmpId, params, hasMipmaps = params.generateMipmaps)
 
                 stbi_image_free(pixels)
             }
@@ -151,9 +144,39 @@ class GLTexture2D : Texture2D {
         height = tmpHeight
     }
 
+    private fun applyParams(id: Int, params: TextureParams, hasMipmaps: Boolean) {
+        val minFilter = when {
+            hasMipmaps && params.minFilter == TextureFilter.LINEAR  -> GL_LINEAR_MIPMAP_LINEAR
+            hasMipmaps && params.minFilter == TextureFilter.NEAREST -> GL_NEAREST_MIPMAP_NEAREST
+            else                                                    -> params.minFilter.toGL()
+        }
+        glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, minFilter)
+        glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, params.magFilter.toGL())
+        glTextureParameteri(id, GL_TEXTURE_WRAP_S, params.wrapS.toGL())
+        glTextureParameteri(id, GL_TEXTURE_WRAP_T, params.wrapT.toGL())
+    }
+
     private fun TextureFilter.toGL(): Int = when (this) {
         TextureFilter.LINEAR  -> GL_LINEAR
         TextureFilter.NEAREST -> GL_NEAREST
+    }
+
+    private fun TextureWrap.toGL(): Int = when (this) {
+        TextureWrap.REPEAT          -> GL_REPEAT
+        TextureWrap.CLAMP_TO_EDGE   -> GL_CLAMP_TO_EDGE
+        TextureWrap.MIRRORED_REPEAT -> GL_MIRRORED_REPEAT
+    }
+
+    private fun mipLevels(width: Int, height: Int): Int {
+        var levels = 1
+        var w = width
+        var h = height
+        while (w > 1 || h > 1) {
+            w = maxOf(1, w / 2)
+            h = maxOf(1, h / 2)
+            levels++
+        }
+        return levels
     }
 
     override fun setData(data: ByteArray) {

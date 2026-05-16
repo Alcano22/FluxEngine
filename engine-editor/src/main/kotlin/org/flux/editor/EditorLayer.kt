@@ -52,9 +52,12 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.addPanel(ViewportPanel(sceneContext))
         editorManager.addPanel(ScenePanel(sceneContext))
         editorManager.addPanel(ConsolePanel())
+        editorManager.addPanel(FileExplorerPanel())
     }
 
     private fun setupScene() {
+        if (loadScene()) return
+
         sceneContext.scene.apply {
             createEntity("Main Camera").apply {
                 addComponent(CameraComponent())
@@ -138,12 +141,7 @@ class EditorLayer : Layer("EditorLayer") {
                 }
 
                 menuItem("Load Scene") {
-                    val file = File("test_scene.flux")
-                    if (file.exists()) {
-                        val loaded = SceneSerializer.deserialize(file.readText())
-                        sceneContext.replace(loaded)
-                        SelectionManager.clear()
-                    }
+                    loadScene()
                 }
             }
 
@@ -154,6 +152,17 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.onImGuiRender()
 
         StatusBar.render()
+    }
+
+    private fun loadScene(): Boolean {
+        val file = File("test_scene.flux")
+        if (file.exists()) {
+            val loaded = SceneSerializer.deserialize(file.readText())
+            sceneContext.replace(loaded)
+            SelectionManager.clear()
+            return true
+        }
+        return false
     }
 
     private fun drawDockSpace() {

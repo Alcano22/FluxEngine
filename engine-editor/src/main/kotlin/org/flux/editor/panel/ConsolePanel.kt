@@ -67,7 +67,7 @@ class ConsolePanel : EditorPanel("Console") {
 
                         val isSelected = SelectionManager.selected === log
                         val flags = ImGuiSelectableFlags.SpanAllColumns or
-                                ImGuiSelectableFlags.AllowItemOverlap
+                                    ImGuiSelectableFlags.AllowOverlap
                         if (ImGui.selectable("${log.timestamp}##log$index", isSelected, flags))
                             SelectionManager.selected = log
 

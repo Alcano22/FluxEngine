@@ -66,18 +66,18 @@ object Renderer : Disposable {
     fun createTexture2D(
         width: Int,
         height: Int,
-        filter: TextureFilter
-    ) = factory.createTexture2D(width, height, filter)
+        params: TextureParams = TextureParams()
+    ) = factory.createTexture2D(width, height, params)
 
     fun createTexture2D(
         path: String,
-        filter: TextureFilter
-    ) = factory.createTexture2D(path, filter)
+        params: TextureParams = TextureParams()
+    ) = factory.createTexture2D(path, params)
 
     fun createTexture2D(
         bytes: ByteArray,
-        filter: TextureFilter
-    ) = factory.createTexture2D(bytes, filter)
+        params: TextureParams = TextureParams()
+    ) = factory.createTexture2D(bytes, params)
 
     fun createFramebuffer(spec: FramebufferSpecification) = factory.createFramebuffer(spec)
 

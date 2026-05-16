@@ -1,11 +1,14 @@
 package org.flux.core.asset
 
+import org.flux.core.asset.meta.ImageMeta
+import org.flux.core.asset.meta.MetaManager
 import org.flux.core.renderer.Shader
 import org.flux.core.renderer.Texture2D
 import org.flux.core.renderer.TextureFilter
 import org.flux.core.util.Disposable
 import org.flux.core.logging.logger
 import org.flux.core.logging.require
+import org.flux.core.renderer.TextureParams
 import java.io.File
 
 enum class AssetLocation {
@@ -62,6 +65,10 @@ object AssetManager : Disposable {
         }
     }
 
+    fun invalidateText(path: String) {
+        textCache.remove("EXTERNAL:$path")
+    }
+
     fun getShader(
         path: String,
         location: AssetLocation = AssetLocation.EXTERNAL,
@@ -77,22 +84,39 @@ object AssetManager : Disposable {
     fun getTexture(
         path: String,
         location: AssetLocation = AssetLocation.EXTERNAL,
-        filter: TextureFilter = TextureFilter.LINEAR
+        params: TextureParams? = null
     ): Texture2D {
-        val key = "${location.name}:$path:${filter.name}"
+        val resolvedParams = params ?: run {
+            if (location == AssetLocation.EXTERNAL) {
+                val meta = MetaManager.getOrCreate(path, ImageMeta())
+                TextureParams(
+                    minFilter       = meta.minFilter,
+                    magFilter       = meta.magFilter,
+                    wrapS           = meta.wrapS,
+                    wrapT           = meta.wrapT,
+                    generateMipmaps = meta.generateMipmaps
+                )
+            } else TextureParams()
+        }
+
+        val key = "${location.name}:$path:$resolvedParams"
         return textureCache.getOrPut(key) {
             when (location) {
                 AssetLocation.INTERNAL -> {
                     val bytes = readBytes(path, location)
-                    Texture2D.create(bytes, filter)
+                    Texture2D.create(bytes, resolvedParams)
                 }
                 AssetLocation.EXTERNAL -> {
                     val file = File(path)
                     logger.require(file.exists()) { "Texture not found: $path" }
-                    Texture2D.create(path, filter)
+                    Texture2D.create(path, resolvedParams)
                 }
             }
         }
+    }
+
+    fun invalidateTexture(path: String) {
+        textureCache.remove("EXTERNAL:$path")
     }
 
     fun getFont(path: String, location: AssetLocation = AssetLocation.EXTERNAL) = readBytes(path, location)

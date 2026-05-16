@@ -12,9 +12,9 @@ interface GraphicsFactory {
     fun createShader(vertexSrc: String, fragmentSrc: String, defines: Map<String, Any>): Shader
     fun createShader(src: String, defines: Map<String, Any>): Shader
 
-    fun createTexture2D(width: Int, height: Int, filter: TextureFilter): Texture2D
-    fun createTexture2D(path: String, filter: TextureFilter): Texture2D
-    fun createTexture2D(bytes: ByteArray, filter: TextureFilter): Texture2D
+    fun createTexture2D(width: Int, height: Int, params: TextureParams): Texture2D
+    fun createTexture2D(path: String, params: TextureParams): Texture2D
+    fun createTexture2D(bytes: ByteArray, params: TextureParams): Texture2D
 
     fun createFramebuffer(spec: FramebufferSpecification): Framebuffer
 }

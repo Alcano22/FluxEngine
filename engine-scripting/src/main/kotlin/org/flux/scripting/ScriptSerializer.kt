@@ -16,6 +16,7 @@ import org.flux.scripting.loader.ScriptLoader
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
+import kotlin.reflect.jvm.javaField
 
 object ScriptSerializer : KSerializer<Script> {
 
@@ -29,11 +30,13 @@ object ScriptSerializer : KSerializer<Script> {
             encodeStringElement(descriptor, 0, value::class.qualifiedName!!)
 
             val props = mutableMapOf<String, String>()
-            value::class.memberProperties.forEach { prop ->
-                prop.isAccessible = true
-                val v = prop.getter.call(value) ?: return@forEach
-                props[prop.name] = v.toString()
-            }
+            value::class.memberProperties
+                .filter { it.javaField?.declaringClass == value::class.java }
+                .forEach { prop ->
+                    prop.isAccessible = true
+                    val v = prop.getter.call(value) ?: return@forEach
+                    props[prop.name] = v.toString()
+                }
 
             val jsonProps = JsonObject(props.mapValues { JsonPrimitive(it.value) })
             encodeSerializableElement(descriptor, 1, JsonObject.serializer(), jsonProps)
@@ -79,11 +82,13 @@ object ScriptSerializer : KSerializer<Script> {
                 encodeStringElement(descriptor, 0, value::class.qualifiedName!!)
 
                 val props = mutableMapOf<String, String>()
-                value::class.memberProperties.forEach { prop ->
-                    prop.isAccessible = true
-                    val v = prop.getter.call(value) ?: return@forEach
-                    props[prop.name] = v.toString()
-                }
+                value::class.memberProperties
+                    .filter { it.javaField?.declaringClass == value::class.java }
+                    .forEach { prop ->
+                        prop.isAccessible = true
+                        val v = prop.getter.call(value) ?: return@forEach
+                        props[prop.name] = v.toString()
+                    }
 
                 val jsonProps = JsonObject(props.mapValues { JsonPrimitive(it.value) })
                 encodeSerializableElement(descriptor, 1, JsonObject.serializer(), jsonProps)

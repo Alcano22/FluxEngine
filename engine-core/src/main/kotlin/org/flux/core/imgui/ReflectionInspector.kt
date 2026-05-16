@@ -4,6 +4,11 @@ import imgui.ImGui
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImBoolean
 import imgui.type.ImString
+import org.flux.core.asset.AssetLocation
+import org.flux.core.asset.AssetManager
+import org.flux.core.logging.logger
+import org.flux.core.renderer.Texture2D
+import org.flux.core.renderer.TextureHandle
 import org.flux.core.scene.Component
 import org.flux.core.scene.ExposeInInspector
 import org.flux.core.scene.HideInInspector
@@ -14,6 +19,7 @@ import org.joml.Vector3f
 import org.joml.Vector3i
 import org.joml.Vector4f
 import org.joml.Vector4i
+import java.io.File
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KVisibility
@@ -22,6 +28,8 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
 object ReflectionInspector {
+
+    private val logger = logger()
 
     private val propertyCache = mutableMapOf<KClass<out Component>, List<KMutableProperty1<Any, Any?>>>()
 
@@ -47,7 +55,18 @@ object ReflectionInspector {
 
             for (mutProperty in properties) {
                 val name = mutProperty.name
-                val value = mutProperty.get(component) ?: continue
+                val type = mutProperty.returnType.classifier as? KClass<*>
+                val value = mutProperty.get(component)
+
+                if (type == TextureHandle::class) {
+                    drawTextureField(name, value as? TextureHandle) { newHandle ->
+                        mutProperty.set(component, newHandle)
+                    }
+                    continue
+                }
+
+                if (value == null) continue
+
                 when (value) {
                     is Boolean -> {
                         val tmp = ImBoolean(value)
@@ -99,4 +118,35 @@ object ReflectionInspector {
         }
     }
 
+    private fun drawTextureField(
+        name: String,
+        handle: TextureHandle?,
+        onChanged: (TextureHandle?) -> Unit
+    ) {
+        val texture = handle?.texture
+        if (texture != null) {
+            ImGuiEx.imageFlipped(texture.rendererId, 48f, 48f)
+            ImGui.sameLine()
+        } else {
+            ImGui.textDisabled("[None]")
+            ImGui.sameLine()
+        }
+
+        ImGui.text(name)
+
+        if (ImGui.beginDragDropTarget()) {
+            val payload = ImGui.acceptDragDropPayload<String>("ASSET_TEXTURE")
+            if (payload != null) {
+                val relative = File(payload).relativeTo(File("").absoluteFile).path
+                onChanged(TextureHandle(relative))
+            }
+            ImGui.endDragDropTarget()
+        }
+
+        if (ImGui.beginPopupContextItem("##ctx_$name")) {
+            if (ImGui.menuItem("Clear"))
+                onChanged(null)
+            ImGui.endPopup()
+        }
+    }
 }

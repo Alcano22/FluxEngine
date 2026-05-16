@@ -113,7 +113,7 @@ object Renderer3D : Disposable {
         }
         cubeVertexArray.setIndexBuffer(IndexBuffer.create(indices))
 
-        whiteTexture = Texture2D.create(1, 1, filter = TextureFilter.NEAREST)
+        whiteTexture = Texture2D.create(1, 1)
         whiteTexture.setData(byteArrayOf(-1, -1, -1, -1))
         textureSlots[0] = whiteTexture
     }

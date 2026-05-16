@@ -7,6 +7,7 @@ import org.flux.core.renderer.IndexBuffer
 import org.flux.core.renderer.Shader
 import org.flux.core.renderer.Texture2D
 import org.flux.core.renderer.TextureFilter
+import org.flux.core.renderer.TextureParams
 import org.flux.core.renderer.VertexArray
 import org.flux.core.renderer.VertexBuffer
 
@@ -33,18 +34,18 @@ class GLFactory : GraphicsFactory {
     override fun createTexture2D(
         width: Int,
         height: Int,
-        filter: TextureFilter
-    ): Texture2D = GLTexture2D(width, height, filter)
+        params: TextureParams
+    ): Texture2D = GLTexture2D(width, height, params)
 
     override fun createTexture2D(
         path: String,
-        filter: TextureFilter
-    ): Texture2D = GLTexture2D(path, filter)
+        params: TextureParams
+    ): Texture2D = GLTexture2D(path, params)
 
     override fun createTexture2D(
         bytes: ByteArray,
-        filter: TextureFilter
-    ): Texture2D = GLTexture2D(bytes, filter)
+        params: TextureParams
+    ): Texture2D = GLTexture2D(bytes, params)
 
     override fun createFramebuffer(spec: FramebufferSpecification): Framebuffer = GLFramebuffer(spec)
 }

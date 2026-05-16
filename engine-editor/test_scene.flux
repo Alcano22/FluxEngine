@@ -16,20 +16,40 @@
             "components": [
                 {
                     "class": "TransformComponent",
-                    "position": [
-                        2.8,
-                        1.8,
-                        0.0
+                    "scale": [
+                        3.0,
+                        3.0,
+                        1.0
                     ]
                 },
                 {
                     "class": "SpriteRendererComponent",
-                    "color": [
-                        0.25,
-                        0.88,
-                        0.82,
-                        1.0
-                    ]
+                    "textureHandle": "assets/textures/holy_mantle.png"
+                },
+                {
+                    "class": "PlayerScript",
+                    "scriptClass": "PlayerScript",
+                    "properties": {
+                        "speed": "5.0"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Point Light",
+            "components": [
+                {
+                    "class": "TransformComponent"
+                },
+                {
+                    "class": "PointLight2DComponent",
+                    "intensity": 1.5,
+                    "radius": 3.0,
+                    "color": {
+                        "r": 1.0,
+                        "g": 0.9,
+                        "b": 0.7
+                    }
                 }
             ]
         }

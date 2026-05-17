@@ -3,6 +3,7 @@ package org.flux.editor
 import org.flux.core.runtime.RuntimeState
 import org.flux.core.scene.Scene
 import org.flux.core.serialization.SceneSerializer
+import org.flux.editor.util.SelectionManager
 
 class SceneContext(scene: Scene) {
 
@@ -27,6 +28,7 @@ class SceneContext(scene: Scene) {
 
     fun replace(newScene: Scene) {
         scene = newScene
+        SelectionManager.clear()
         sceneChangeListeners.forEach { it(newScene) }
     }
 

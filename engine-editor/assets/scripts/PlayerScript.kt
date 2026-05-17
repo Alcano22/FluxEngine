@@ -1,7 +1,9 @@
 import org.flux.scripting.Script
 import org.flux.core.input.Input
 import org.flux.core.input.Key
+import org.flux.core.scene.SingleComponent
 
+@SingleComponent
 class PlayerScript : Script() {
 
     var speed = 5f

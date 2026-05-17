@@ -1,14 +1,22 @@
 package org.flux.editor.panel
 
 import imgui.ImGui
+import imgui.flag.ImGuiCol
+import imgui.flag.ImGuiCond
 import imgui.flag.ImGuiTreeNodeFlags
+import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
 import org.flux.core.asset.AssetManager
 import org.flux.core.asset.meta.ImageMeta
 import org.flux.core.asset.meta.MetaManager
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.imgui.ReflectionInspector
+import org.flux.core.scene.Entity
+import org.flux.editor.util.DnDPayload
+import org.flux.editor.util.NotificationModal
 import org.flux.editor.util.SelectionManager
+import org.flux.scripting.loader.ScriptLoader
+import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.extension
 
@@ -17,14 +25,48 @@ class InspectorPanel : EditorPanel("Inspector") {
     override fun drawContent() {
         ImGuiEx.window(title) {
             when {
-                SelectionManager.selectedEntity != null -> {
-                    for (component in SelectionManager.selectedEntity!!.components)
-                        ReflectionInspector.drawComponent(component)
-                }
+                SelectionManager.selectedEntity != null ->
+                    drawEntityInspector(SelectionManager.selectedEntity!!)
                 SelectionManager.selectedPath != null ->
                     drawAssetInspector(SelectionManager.selectedPath!!)
                 else -> ImGui.textDisabled("No selection")
             }
+        }
+    }
+
+    private fun drawEntityInspector(entity: Entity) {
+        entity.components.forEach { ReflectionInspector.drawComponent(it) }
+
+        ImGui.separator()
+
+        val availX = ImGui.getContentRegionAvailX()
+        val availY = ImGui.getContentRegionAvailY()
+
+        ImGui.pushStyleColor(ImGuiCol.Button,        0f, 0f, 0f, 0f)
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.2f, 0.2f, 0.3f)
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive,  0.2f, 0.2f, 0.2f, 0.5f)
+        ImGui.invisibleButton("##script_drop", availX, availY.coerceAtLeast(40f))
+        ImGui.popStyleColor(3)
+
+        val text = "Drop script here..."
+        val textW = ImGui.calcTextSizeX(text)
+        val btnMin = ImGui.getItemRectMin()
+        val btnMax = ImGui.getItemRectMax()
+        val textX = btnMin.x + (btnMax.x - btnMin.x - textW) * 0.5f
+        val textY = btnMin.y + (btnMax.y - btnMin.y - ImGui.getTextLineHeight()) * 0.5f
+        ImGui.getWindowDrawList().addText(textX, textY, ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1f), text)
+
+        if (ImGui.beginDragDropTarget()) {
+            val payload = ImGui.acceptDragDropPayload<String>(DnDPayload.SCRIPT)
+            if (payload != null) {
+                val className = File(payload).nameWithoutExtension
+                val script = ScriptLoader.instantiateOrNull(className)
+                if (script == null)
+                    NotificationModal.error("Failed to load script '$className'.\nMake sure it extends Script and is compiled.")
+                else if (entity.addComponent(script) == null)
+                    NotificationModal.error("Failed to add '$className'.\nA script with this name is already attached.")
+            }
+            ImGui.endDragDropTarget()
         }
     }
 

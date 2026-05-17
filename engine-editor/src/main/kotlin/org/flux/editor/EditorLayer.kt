@@ -22,6 +22,7 @@ import org.flux.core.util.Color
 import org.flux.core.util.MainThreadQueue
 import org.flux.core.util.Timestep
 import org.flux.editor.panel.*
+import org.flux.editor.util.NotificationModal
 import org.flux.editor.util.SelectionManager
 import org.flux.scripting.compiler.ScriptCompiler
 import org.flux.scripting.loader.ScriptLoader
@@ -152,6 +153,7 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.onImGuiRender()
 
         StatusBar.render()
+        NotificationModal.render()
     }
 
     private fun loadScene(): Boolean {

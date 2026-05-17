@@ -25,9 +25,10 @@ class Entity(
 
     val transform get() = components[0] as TransformComponent
 
-    inline fun <reified T : Component> addComponent(component: T): T {
-        if (T::class.hasAnnotation<SingleComponent>() && hasComponent<T>())
-            return getComponent<T>()!!
+    fun addComponent(component: Component): Component? {
+        val kClass = component::class
+        if (kClass.hasAnnotation<SingleComponent>() && components.any { it::class == kClass })
+            return null
 
         component.setEntity(this)
         components.add(component)

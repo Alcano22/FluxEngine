@@ -52,6 +52,9 @@ class Scene {
     fun findEntityById(id: Int): Entity? =
         entities.firstOrNull { it.id == id }
 
+    fun findEntityByUuid(uuid: String): Entity? =
+        entities.firstOrNull { it.uuid == uuid }
+
     fun onStart() {
         repeat(entities.size) { i ->
             entities[i].start()

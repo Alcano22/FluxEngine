@@ -3,11 +3,13 @@ package org.flux.core.scene
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.flux.core.util.Timestep
+import java.util.UUID
 import kotlin.reflect.full.hasAnnotation
 
 @Serializable
 class Entity(
-    var name: String = "Unnamed Entity"
+    var name: String = "Unnamed Entity",
+    val uuid: String = UUID.randomUUID().toString()
 ) {
 
     companion object {
@@ -23,7 +25,8 @@ class Entity(
 
     val components = mutableListOf<Component>()
 
-    val transform get() = components[0] as TransformComponent
+    val transform get() = getComponent<TransformComponent>()
+        ?: error("Entity '$name' has no TransformComponent")
 
     fun addComponent(component: Component): Component? {
         val kClass = component::class

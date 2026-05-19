@@ -8,6 +8,7 @@ import org.flux.core.renderer.GraphicsFactory
 import org.flux.core.renderer.Renderer
 import org.flux.core.renderer.RendererAPI
 import org.flux.core.logging.logger
+import org.flux.core.serialization.SceneSerializer
 import org.flux.core.window.Window
 
 class EngineBuilder {
@@ -29,7 +30,7 @@ class EngineBuilder {
         val factory = graphicsFactory ?: throw logger.throwing(IllegalStateException("Graphics factory not configured"))
 
         EngineLogger.attachBridge()
-
+        SceneSerializer.init()
         Renderer.init(api, factory)
 
         val app = appFactory(validWindow)

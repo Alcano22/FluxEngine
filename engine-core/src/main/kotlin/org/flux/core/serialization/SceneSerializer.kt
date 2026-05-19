@@ -64,6 +64,8 @@ object SceneSerializer {
         }
     }
 
+    fun init() { format }
+
     fun serialize(scene: Scene) = format.encodeToString(scene)
 
     fun deserialize(json: String): Scene {

@@ -4,12 +4,12 @@ import org.flux.core.asset.meta.ImageMeta
 import org.flux.core.asset.meta.MetaManager
 import org.flux.core.renderer.Shader
 import org.flux.core.renderer.Texture2D
-import org.flux.core.renderer.TextureFilter
 import org.flux.core.util.Disposable
 import org.flux.core.logging.logger
 import org.flux.core.logging.require
 import org.flux.core.renderer.TextureParams
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 enum class AssetLocation {
     INTERNAL,
@@ -20,10 +20,10 @@ object AssetManager : Disposable {
 
     private val logger = logger()
 
-    private val textCache = mutableMapOf<String, String>()
-    private val byteCache = mutableMapOf<String, ByteArray>()
-    private val shaderCache = mutableMapOf<String, Shader>()
-    private val textureCache = mutableMapOf<String, Texture2D>()
+    private val textCache = ConcurrentHashMap<String, String>()
+    private val byteCache = ConcurrentHashMap<String, ByteArray>()
+    private val shaderCache = ConcurrentHashMap<String, Shader>()
+    private val textureCache = ConcurrentHashMap<String, Texture2D>()
 
     fun readBytes(path: String, location: AssetLocation = AssetLocation.EXTERNAL): ByteArray {
         val key = "${location.name}:$path"

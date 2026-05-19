@@ -7,6 +7,8 @@ import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.input.Input
@@ -39,6 +41,8 @@ class EditorLayer : Layer("EditorLayer") {
 
     private val editorManager = EditorManager()
     private val sceneContext = SceneContext(Scene())
+
+    private val editorScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var isScriptingReady = false
 
@@ -91,7 +95,7 @@ class EditorLayer : Layer("EditorLayer") {
             .map { File(it) }
             .filter { it.exists() }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        editorScope.launch {
             val success = ScriptCompiler.compile(
                 scriptsDir    = scriptsDir,
                 outputDir     = outputDir,
@@ -110,6 +114,7 @@ class EditorLayer : Layer("EditorLayer") {
     }
 
     override fun onDetach() {
+        editorScope.cancel()
         editorManager.dispose()
     }
 

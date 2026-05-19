@@ -20,7 +20,7 @@
                     "handle": "Assets/Textures/player4.png"
                 }
             ],
-            "fps": 6.0
+            "fps": 8.0
         },
         {
             "name": "Run",
@@ -83,7 +83,7 @@
                     "v1": 1.0
                 }
             ],
-            "fps": 6.0
+            "fps": 8.0
         }
     ]
 }

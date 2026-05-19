@@ -32,6 +32,13 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl-stb::$lwjglNatives")
 }
 
+tasks.named<JavaExec>("run") {
+    if (osName.contains("linux")) {
+        environment("__NV_PRIME_RENDER_OFFLOAD", "1")
+        environment("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+    }
+}
+
 application {
     mainClass.set("org.flux.editor.MainKt")
 }

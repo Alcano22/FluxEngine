@@ -7,7 +7,7 @@ import kotlinx.serialization.Transient
 import org.flux.core.logging.logger
 import org.flux.core.renderer.Renderer2D
 import org.flux.core.renderer.Texture2D
-import org.flux.core.renderer.TextureHandle
+import org.flux.core.asset.TextureHandle
 import org.flux.core.util.Color
 import org.joml.Vector4f
 
@@ -20,6 +20,32 @@ class SpriteRendererComponent(
 ) : Component() {
 
     override fun onRender2D() {
-        Renderer2D.drawQuad(transform.matrix, textureHandle?.texture, color, entity.id)
+        val animator = entity.getComponent<SpriteAnimatorComponent>()
+        val frame = animator?.currentFrame
+        val clip = animator?.currentClip
+
+        val texture = (clip?.textureHandle ?: textureHandle)?.texture
+
+        when (frame) {
+            is AnimationFrame.TextureFrame -> Renderer2D.drawQuad(
+                transform = transform.matrix,
+                texture   = frame.handle.texture,
+                color     = color,
+                entityId  = entity.id
+            )
+            is AnimationFrame.SheetFrame -> Renderer2D.drawQuad(
+                transform = transform.matrix,
+                texture   = texture,
+                frame     = frame,
+                color     = color,
+                entityId  = entity.id
+            )
+            null -> Renderer2D.drawQuad(
+                transform = transform.matrix,
+                texture   = textureHandle?.texture,
+                color     = color,
+                entityId  = entity.id
+            )
+        }
     }
 }

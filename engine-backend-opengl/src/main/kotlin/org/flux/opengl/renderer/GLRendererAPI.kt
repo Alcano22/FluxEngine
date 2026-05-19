@@ -31,9 +31,7 @@ class GLRendererAPI : RendererAPI {
 
         glEnable(GL_DEPTH_TEST)
 
-        glEnable(GL_CULL_FACE)
-        glCullFace(GL_BACK)
-        glFrontFace(GL_CCW)
+        glDisable(GL_CULL_FACE)
     }
 
     override fun setClearColor(r: Float, g: Float, b: Float, a: Float) = glClearColor(r, g, b, a)

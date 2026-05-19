@@ -14,10 +14,14 @@ import org.flux.core.imgui.ImGuiEx
 import org.flux.core.input.Input
 import org.flux.core.layer.Layer
 import org.flux.core.logging.logger
+import org.flux.core.asset.TextureHandle
 import org.flux.core.runtime.RuntimeState
+import org.flux.core.scene.AnimationClip
+import org.flux.core.scene.AnimationFrame
 import org.flux.core.scene.CameraComponent
 import org.flux.core.scene.PointLight2DComponent
 import org.flux.core.scene.Scene
+import org.flux.core.scene.SpriteAnimatorComponent
 import org.flux.core.scene.SpriteRendererComponent
 import org.flux.core.serialization.SceneSerializer
 import org.flux.core.util.Color
@@ -33,7 +37,7 @@ import java.io.File
 class EditorLayer : Layer("EditorLayer") {
 
     companion object {
-        private val scriptsDir = File("assets/scripts")
+        private val scriptsDir = File("Assets/Scripts")
         private val outputDir  = File(".flux/scripts/out")
 
         private val logger = logger()
@@ -57,7 +61,14 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.addPanel(ViewportPanel(sceneContext))
         editorManager.addPanel(ScenePanel(sceneContext))
         editorManager.addPanel(ConsolePanel())
-        editorManager.addPanel(FileExplorerPanel())
+
+        val animPanel = editorManager.addPanel(AnimationEditorPanel())
+        val fileExplorerPanel = editorManager.addPanel(FileExplorerPanel())
+
+        fileExplorerPanel.onAnimationOpen = { path ->
+            animPanel.open(path)
+            animPanel.requestFocus()
+        }
     }
 
     private fun setupScene() {
@@ -69,9 +80,11 @@ class EditorLayer : Layer("EditorLayer") {
             }
 
             createEntity("Player").apply {
+                transform.scale.set(3f, 3f, 1f)
                 addComponent(SpriteRendererComponent().apply {
-                    color.set(0.25f, 0.88f, 0.82f, 1f)
+                    textureHandle = TextureHandle("Assets/Textures/player1.png")
                 })
+                addComponent(SpriteAnimatorComponent())
                 ScriptLoader.instantiateOrNull("PlayerScript")?.let { addComponent(it) }
             }
 
@@ -81,7 +94,6 @@ class EditorLayer : Layer("EditorLayer") {
                     radius    = 3f,
                     color     = Color(1f, 0.9f, 0.7f)
                 ))
-                transform.position.set(1f, 0f, 0f)
             }
         }
     }

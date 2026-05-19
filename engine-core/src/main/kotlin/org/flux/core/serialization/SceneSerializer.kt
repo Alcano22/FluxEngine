@@ -9,7 +9,9 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.contextual
 import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.serializerOrNull
+import org.flux.core.scene.AnimationFrame
 import org.flux.core.scene.Component
 import org.flux.core.scene.Scene
 import org.reflections.Reflections
@@ -50,6 +52,11 @@ object SceneSerializer {
                             )
                         }
                     }
+                }
+
+                polymorphic(AnimationFrame::class) {
+                    subclass(AnimationFrame.SheetFrame::class)
+                    subclass(AnimationFrame.TextureFrame::class)
                 }
 
                 additionalSerializers.forEach { it() }

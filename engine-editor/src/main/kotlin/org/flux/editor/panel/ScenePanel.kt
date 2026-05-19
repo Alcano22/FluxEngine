@@ -120,14 +120,14 @@ class ScenePanel(
         RenderCommand.setStencilWrite(1)
 
         Renderer2D.beginScene(camera)
-        Renderer2D.drawQuad(transform, null, Color.White)
+        Renderer2D.drawQuad(transform = transform, color = Color.White)
         Renderer2D.endScene()
 
         RenderCommand.setStencilDrawWhere(1)
 
         val scaledTransform = Matrix4f(transform).scale(scaleFactorX, scaleFactorY, 1f)
         Renderer2D.beginScene(camera)
-        Renderer2D.drawQuad(scaledTransform, null, outlineColor)
+        Renderer2D.drawQuad(transform = scaledTransform, color = outlineColor)
         Renderer2D.endScene()
 
         RenderCommand.setStencilMaskWrite(true)

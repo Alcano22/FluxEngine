@@ -47,7 +47,11 @@ object NotificationModal {
 
             ImGui.textColored(color, title)
             ImGui.spacing()
+
             ImGui.textWrapped(msg)
+            if (ImGui.button("Copy"))
+                ImGui.setClipboardText(msg)
+
             ImGui.separator()
 
             val buttonW = 120f

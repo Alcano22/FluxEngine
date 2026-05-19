@@ -2,6 +2,7 @@ package org.flux.core.renderer
 
 import org.flux.core.asset.AssetLocation
 import org.flux.core.asset.AssetManager
+import org.flux.core.scene.AnimationFrame
 import org.flux.core.util.Color
 import org.flux.core.util.Disposable
 import org.joml.*
@@ -172,49 +173,9 @@ object Renderer2D : Disposable {
     }
 
     fun drawQuad(
-        position: Vector2fc,
-        rotation: Float,
-        size: Vector2fc,
-        color: Color,
-        entityId: Int = -1
-    ) = drawQuad(Vector3f(position, 0f), rotation, size, null, color, entityId)
-
-    fun drawQuad(
-        position: Vector3fc,
-        rotation: Float,
-        size: Vector2fc,
-        color: Color,
-        entityId: Int = -1
-    ) = drawQuad(position, rotation, size, null, color, entityId)
-
-    fun drawQuad(
-        position: Vector2fc,
-        rotation: Float,
-        size: Vector2fc,
-        texture: Texture2D,
-        color: Color = Color.White,
-        entityId: Int = -1
-    ) = drawQuad(Vector3f(position, 0f), rotation, size, texture, color, entityId)
-
-    fun drawQuad(
-        position: Vector3fc,
-        rotation: Float,
-        size: Vector2fc,
+        transform: Matrix4fc,
         texture: Texture2D? = null,
-        color: Color = Color.White,
-        entityId: Int = -1
-    ) {
-        val transform = Matrix4f()
-            .translate(position)
-            .rotateZ(rotation)
-            .scaleXY(size.x(), size.y())
-
-        drawQuad(transform, texture, color, entityId)
-    }
-
-    fun drawQuad(
-        transform: Matrix4f,
-        texture: Texture2D? = null,
+        frame: AnimationFrame.SheetFrame? = null,
         color: Color = Color.White,
         entityId: Int = -1
     ) {
@@ -239,6 +200,15 @@ object Renderer2D : Disposable {
             }
         }
 
+        val texCoords = if (frame != null)
+            arrayOf(
+                Vector2f(frame.u0, frame.v0),
+                Vector2f(frame.u1, frame.v0),
+                Vector2f(frame.u1, frame.v1),
+                Vector2f(frame.u0, frame.v1)
+            )
+        else quadTexCoords
+
         repeat(4) { i ->
             val transformedPos = Vector4f(quadVertexPositions[i]).mul(transform)
 
@@ -251,8 +221,8 @@ object Renderer2D : Disposable {
             quadVertexData[quadVertexPtr++] = color.b
             quadVertexData[quadVertexPtr++] = color.a
 
-            quadVertexData[quadVertexPtr++] = quadTexCoords[i].x
-            quadVertexData[quadVertexPtr++] = quadTexCoords[i].y
+            quadVertexData[quadVertexPtr++] = texCoords[i].x
+            quadVertexData[quadVertexPtr++] = texCoords[i].y
 
             quadVertexData[quadVertexPtr++] = texIndex
 

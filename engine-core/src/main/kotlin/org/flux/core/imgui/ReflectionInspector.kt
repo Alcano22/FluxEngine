@@ -4,11 +4,12 @@ import imgui.ImGui
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImBoolean
 import imgui.type.ImString
+import org.flux.core.asset.AnimationHandle
 import org.flux.core.asset.AssetLocation
 import org.flux.core.asset.AssetManager
 import org.flux.core.logging.logger
 import org.flux.core.renderer.Texture2D
-import org.flux.core.renderer.TextureHandle
+import org.flux.core.asset.TextureHandle
 import org.flux.core.scene.Component
 import org.flux.core.scene.ExposeInInspector
 import org.flux.core.scene.HideInInspector
@@ -60,6 +61,13 @@ object ReflectionInspector {
 
                 if (type == TextureHandle::class) {
                     drawTextureField(name, value as? TextureHandle) { newHandle ->
+                        mutProperty.set(component, newHandle)
+                    }
+                    continue
+                }
+
+                if (type == AnimationHandle::class) {
+                    drawAnimationField(name, value as? AnimationHandle) { newHandle ->
                         mutProperty.set(component, newHandle)
                     }
                     continue
@@ -124,14 +132,12 @@ object ReflectionInspector {
         onChanged: (TextureHandle?) -> Unit
     ) {
         val texture = handle?.texture
-        if (texture != null) {
+        if (texture != null)
             ImGuiEx.imageFlipped(texture.rendererId, 48f, 48f)
-            ImGui.sameLine()
-        } else {
+        else
             ImGui.textDisabled("[None]")
-            ImGui.sameLine()
-        }
 
+        ImGui.sameLine()
         ImGui.text(name)
 
         if (ImGui.beginDragDropTarget()) {
@@ -139,6 +145,35 @@ object ReflectionInspector {
             if (payload != null) {
                 val relative = File(payload).relativeTo(File("").absoluteFile).path
                 onChanged(TextureHandle(relative))
+            }
+            ImGui.endDragDropTarget()
+        }
+
+        if (ImGui.beginPopupContextItem("##ctx_$name")) {
+            if (ImGui.menuItem("Clear"))
+                onChanged(null)
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawAnimationField(
+        name: String,
+        handle: AnimationHandle?,
+        onChanged: (AnimationHandle?) -> Unit
+    ) {
+        if (handle != null)
+            ImGui.text(handle.path)
+        else
+            ImGui.textDisabled("[None]")
+
+        ImGui.sameLine()
+        ImGui.text(name)
+
+        if (ImGui.beginDragDropTarget()) {
+            val payload = ImGui.acceptDragDropPayload<String>("ASSET_ANIMATION")
+            if (payload != null) {
+                val relative = File(payload).relativeTo(File("").absoluteFile).path
+                onChanged(AnimationHandle(relative))
             }
             ImGui.endDragDropTarget()
         }

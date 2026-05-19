@@ -8,8 +8,9 @@ class EditorManager : Disposable {
     @PublishedApi
     internal val panels = mutableListOf<EditorPanel>()
 
-    fun addPanel(panel: EditorPanel) {
+    fun <T : EditorPanel> addPanel(panel: T): T {
         panels.add(panel)
+        return panel
     }
 
     inline fun <reified T : EditorPanel> getPanel(): T? =

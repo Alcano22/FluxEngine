@@ -30,7 +30,6 @@ class EngineBuilder {
         val factory = graphicsFactory ?: throw logger.throwing(IllegalStateException("Graphics factory not configured"))
 
         EngineLogger.attachBridge()
-        SceneSerializer.init()
         Renderer.init(api, factory)
 
         val app = appFactory(validWindow)

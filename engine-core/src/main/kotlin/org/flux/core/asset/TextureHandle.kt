@@ -1,7 +1,7 @@
-package org.flux.core.renderer
+package org.flux.core.asset
 
 import kotlinx.serialization.Serializable
-import org.flux.core.asset.AssetManager
+import org.flux.core.renderer.Texture2D
 
 @JvmInline
 @Serializable

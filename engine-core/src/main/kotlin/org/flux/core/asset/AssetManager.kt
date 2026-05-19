@@ -8,6 +8,7 @@ import org.flux.core.util.Disposable
 import org.flux.core.logging.logger
 import org.flux.core.logging.require
 import org.flux.core.renderer.TextureParams
+import org.flux.core.serialization.AnimationSerializer
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -20,10 +21,11 @@ object AssetManager : Disposable {
 
     private val logger = logger()
 
-    private val textCache = ConcurrentHashMap<String, String>()
-    private val byteCache = ConcurrentHashMap<String, ByteArray>()
-    private val shaderCache = ConcurrentHashMap<String, Shader>()
-    private val textureCache = ConcurrentHashMap<String, Texture2D>()
+    private val textCache      = ConcurrentHashMap<String, String>()
+    private val byteCache      = ConcurrentHashMap<String, ByteArray>()
+    private val shaderCache    = ConcurrentHashMap<String, Shader>()
+    private val textureCache   = ConcurrentHashMap<String, Texture2D>()
+    private val animationCache = ConcurrentHashMap<String, AnimationAsset>()
 
     fun readBytes(path: String, location: AssetLocation = AssetLocation.EXTERNAL): ByteArray {
         val key = "${location.name}:$path"
@@ -119,6 +121,16 @@ object AssetManager : Disposable {
         textureCache.remove("EXTERNAL:$path")
     }
 
+    fun getAnimation(path: String): AnimationAsset =
+        animationCache.getOrPut(path) {
+            val json = readText(path)
+            AnimationSerializer.deserialize(json)
+        }
+
+    fun invalidateAnimation(path: String) {
+        animationCache.remove(path)
+    }
+
     fun getFont(path: String, location: AssetLocation = AssetLocation.EXTERNAL) = readBytes(path, location)
 
     override fun dispose() {
@@ -130,5 +142,7 @@ object AssetManager : Disposable {
 
         textureCache.values.forEach { it.dispose() }
         textureCache.clear()
+
+        animationCache.clear()
     }
 }

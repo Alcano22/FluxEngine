@@ -2,15 +2,22 @@ package org.flux.editor.panel
 
 import imgui.ImGui
 import imgui.flag.ImGuiCol
+import imgui.flag.ImGuiInputTextFlags
+import imgui.flag.ImGuiKey
 import imgui.flag.ImGuiMouseButton
+import imgui.flag.ImGuiPopupFlags
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiTableFlags
 import imgui.flag.ImGuiTreeNodeFlags
+import imgui.type.ImString
+import org.flux.core.asset.AnimationAsset
 import org.flux.core.asset.AssetLocation
 import org.flux.core.asset.AssetManager
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.renderer.TextureFilter
+import org.flux.core.serialization.AnimationSerializer
 import org.flux.editor.util.DnDPayload
+import org.flux.editor.util.NotificationModal
 import org.flux.editor.util.SelectionManager
 import java.awt.Desktop
 import java.nio.file.Files
@@ -24,7 +31,7 @@ import kotlin.math.floor
 import kotlin.math.max
 
 class FileExplorerPanel(
-    private val root: Path = Path("assets")
+    private val root: Path = Path("Assets")
 ) : EditorPanel("File Explorer") {
 
     companion object {
@@ -37,6 +44,11 @@ class FileExplorerPanel(
 
     private var currentDir: Path = root
     private var selectedEntry: Path? = null
+
+    private var renamingEntry: Path? = null
+    private var renameBuffer = ImString(256)
+
+    var onAnimationOpen: ((String) -> Unit)? = null
 
     override fun drawContent() {
         ImGuiEx.window(title) {
@@ -148,6 +160,20 @@ class FileExplorerPanel(
             }
             ImGui.endTable()
         }
+
+        if (ImGui.beginPopupContextWindow(
+            "##grid_ctx",
+            ImGuiPopupFlags.MouseButtonRight or ImGuiPopupFlags.NoOpenOverItems
+        )) {
+            if (ImGui.beginMenu("New")) {
+                if (ImGui.menuItem("Folder"))
+                    createFolder(currentDir)
+                if (ImGui.menuItem("Animation"))
+                    createAnimationFile(currentDir)
+                ImGui.endMenu()
+            }
+            ImGui.endPopup()
+        }
     }
 
     private fun drawCell(path: Path) {
@@ -160,6 +186,7 @@ class FileExplorerPanel(
         val cellH = THUMB_SIZE + textH + 6f
         val startPos = ImGui.getCursorPos()
         val selected = selectedEntry == path
+        val isRenaming = renamingEntry == path
 
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4f, 4f)
         if (!selected) {
@@ -177,12 +204,21 @@ class FileExplorerPanel(
             ImGui.popStyleColor(3)
         ImGui.popStyleVar()
 
+        if (selected && !isRenaming && ImGui.isKeyPressed(ImGuiKey.F2)) {
+            renamingEntry = path
+            renameBuffer = ImString(path.nameWithoutExtension, 256)
+        }
+
+        if (selected && !isRenaming && ImGui.isKeyPressed(ImGuiKey.Delete))
+            deleteEntry(path)
+
         if (!isDir && ImGui.beginDragDropSource()) {
             val absPath = path.toAbsolutePath().toString()
             val payloadType = when (ext) {
                 "png", "jpg", "jpeg" -> DnDPayload.TEXTURE
                 "kt"                 -> DnDPayload.SCRIPT
                 "flux"               -> DnDPayload.SCENE
+                "anim"               -> DnDPayload.ANIMATION
                 else                 -> null
             }
 
@@ -199,18 +235,72 @@ class FileExplorerPanel(
         if (isDir && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left))
             selectDir(path)
 
-        if (!isDir && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left))
-            openInExternalEditor(path)
+        if (!isDir && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+            when (ext) {
+                "anim" -> onAnimationOpen?.invoke(path.toAbsolutePath().toString())
+                else   -> openInExternalEditor(path)
+            }
+        }
 
         val iconX = startPos.x + max(0f, (cellW - THUMB_SIZE) * 0.5f)
         ImGui.setCursorPos(iconX, startPos.y + 2f)
         ImGuiEx.imageFlipped(texId, THUMB_SIZE, THUMB_SIZE)
 
-        val textW = ImGui.calcTextSizeX(label)
-        ImGui.setCursorPos(startPos.x + max(0f, (cellW - textW) * 0.5f), startPos.y + THUMB_SIZE + 4f)
-        ImGui.textUnformatted(label)
+        if (isRenaming) {
+            ImGui.setCursorPos(startPos.x, startPos.y + THUMB_SIZE + 4f)
+            ImGui.setNextItemWidth(cellW)
+            ImGui.setKeyboardFocusHere()
+            if (ImGui.inputText("##rename_${path.name}", renameBuffer, ImGuiInputTextFlags.EnterReturnsTrue))
+                commitRename(path)
+            if (ImGui.isKeyPressed(ImGuiKey.Escape))
+                renamingEntry = null
+            if (!ImGui.isItemActive() && !ImGui.isItemFocused())
+                renamingEntry = null
+        } else {
+            val textW = ImGui.calcTextSizeX(label)
+            ImGui.setCursorPos(startPos.x + max(0f, (cellW - textW) * 0.5f), startPos.y + THUMB_SIZE + 4f)
+            ImGui.textUnformatted(label)
+        }
 
         ImGui.setCursorPos(startPos.x, startPos.y + cellH)
+    }
+
+    private fun commitRename(path: Path) {
+        val newName = renameBuffer.get().trim()
+        renamingEntry = null
+
+        if (newName.isEmpty() || newName == path.nameWithoutExtension) return
+
+        val newPath = if (path.isDirectory())
+            path.parent.resolve(newName)
+        else
+            path.parent.resolve("$newName.${path.extension}")
+
+        runCatching {
+            Files.move(path, newPath)
+            if (selectedEntry == path) {
+                selectedEntry = newPath
+                SelectionManager.selected = newPath
+            }
+        }.onFailure {
+            NotificationModal.error("Failed to rename: ${it.message}")
+        }
+    }
+
+    private fun deleteEntry(path: Path) {
+        runCatching {
+            if (path.isDirectory())
+                path.toFile().deleteRecursively()
+            else
+                Files.delete(path)
+
+            if (selectedEntry == path) {
+                selectedEntry = null
+                SelectionManager.selected = null
+            }
+        }.onFailure {
+            NotificationModal.error("Failed to delete: ${it.message}")
+        }
     }
 
     private fun renderFooter() {
@@ -310,25 +400,62 @@ class FileExplorerPanel(
         return "%.1f %s".format(b, units[i])
     }
 
+    private fun createFolder(dir: Path) {
+        var name = "New Folder"
+        var folder = dir.resolve(name).toFile()
+        var counter = 1
+        while (folder.exists()) {
+            name = "New Folder $counter"
+            folder = dir.resolve(name).toFile()
+            counter++
+        }
+
+        runCatching {
+            folder.mkdirs()
+            selectedEntry = folder.toPath()
+        }.onFailure {
+            NotificationModal.error("Failed to create folder: ${it.message}")
+        }
+    }
+
+    private fun createAnimationFile(dir: Path) {
+        var name = "New Animation"
+        var file = dir.resolve("$name.anim").toFile()
+        var counter = 1
+        while (file.exists()) {
+            name = "New Animation $counter"
+            file = dir.resolve("$name.anim").toFile()
+            counter++
+        }
+
+        runCatching {
+            file.writeText(AnimationSerializer.serialize(AnimationAsset()))
+            selectedEntry = file.toPath()
+        }.onFailure {
+            NotificationModal.error("Failed to create animation: ${it.message}")
+        }
+    }
+
     private object IconCache {
 
-        private const val FOLDER  = "textures/ui/folder.png"
-        private const val GENERIC = "textures/ui/file.png"
+        private const val FOLDER  = "folder.png"
+        private const val GENERIC = "file.png"
 
         private val extMap = mapOf(
-            "png"    to "textures/ui/file_image.png",
-            "jpg"    to "textures/ui/file_image.png",
-            "jpeg"   to "textures/ui/file_image.png",
-            "txt"    to "textures/ui/file_text.png",
-            "md"     to "textures/ui/file_text.png",
-            "json"   to "textures/ui/file_text.png",
-            "yml"    to "textures/ui/file_text.png",
-            "yaml"   to "textures/ui/file_text.png",
-            "ttf"    to "textures/ui/file_font.png",
-            "otf"    to "textures/ui/file_font.png",
-            "shader" to "textures/ui/file_code.png",
-            "glsl"   to "textures/ui/file_code.png",
-            "kt"     to "textures/ui/file_code.png"
+            "png"    to "file_image.png",
+            "jpg"    to "file_image.png",
+            "jpeg"   to "file_image.png",
+            "txt"    to "file_text.png",
+            "md"     to "file_text.png",
+            "json"   to "file_text.png",
+            "yml"    to "file_text.png",
+            "yaml"   to "file_text.png",
+            "ttf"    to "file_font.png",
+            "otf"    to "file_font.png",
+            "shader" to "file_code.png",
+            "glsl"   to "file_code.png",
+            "kt"     to "file_code.png",
+            "anim"   to "file_animation.png"
         )
 
         private val cache = mutableMapOf<String, Int>()
@@ -337,7 +464,7 @@ class FileExplorerPanel(
             val path = if (isDir) FOLDER else extMap[ext] ?: GENERIC
             return cache.getOrPut(path) {
                 runCatching {
-                    AssetManager.getTexture(path, AssetLocation.INTERNAL)
+                    AssetManager.getTexture("textures/ui/$path", AssetLocation.INTERNAL)
                         .rendererId
                 }.getOrDefault(0)
             }

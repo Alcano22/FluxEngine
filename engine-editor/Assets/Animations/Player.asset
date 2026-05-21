@@ -1,0 +1,101 @@
+{
+    "type": "ANIMATION",
+    "clips": [
+        {
+            "name": "Idle",
+            "frames": [
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 8
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 9
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 10
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 11
+                    }
+                }
+            ],
+            "fps": 8.0
+        },
+        {
+            "name": "Run",
+            "frames": [
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 16
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 17
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 18
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 19
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 20
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 21
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 22
+                    }
+                },
+                {
+                    "type": "SPRITE",
+                    "sprite": {
+                        "spritesheet": "/home/alcano/dev/kotlin/FluxEngine/engine-editor/Assets/Textures/Player.asset",
+                        "frameIndex": 23
+                    }
+                }
+            ],
+            "fps": 8.0
+        }
+    ]
+}

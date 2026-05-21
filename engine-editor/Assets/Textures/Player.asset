@@ -1,0 +1,6 @@
+{
+    "type": "SPRITESHEET",
+    "texture": "Assets/Textures/Player.png",
+    "cellWidth": 32,
+    "cellHeight": 32
+}

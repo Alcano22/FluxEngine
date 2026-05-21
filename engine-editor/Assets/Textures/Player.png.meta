@@ -1,0 +1,5 @@
+{
+    "type": "ImageMeta",
+    "minFilter": "NEAREST",
+    "magFilter": "NEAREST"
+}

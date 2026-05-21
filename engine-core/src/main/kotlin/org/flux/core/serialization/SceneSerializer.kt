@@ -11,7 +11,8 @@ import kotlinx.serialization.modules.contextual
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.serializerOrNull
-import org.flux.core.scene.AnimationFrame
+import org.flux.core.asset.AssetHandle
+import org.flux.core.asset.SpriteSource
 import org.flux.core.scene.Component
 import org.flux.core.scene.Scene
 import org.reflections.Reflections
@@ -54,10 +55,12 @@ object SceneSerializer {
                     }
                 }
 
-                polymorphic(AnimationFrame::class) {
-                    subclass(AnimationFrame.SheetFrame::class)
-                    subclass(AnimationFrame.TextureFrame::class)
+                polymorphic(SpriteSource::class) {
+                    subclass(SpriteSource.FromTexture::class)
+                    subclass(SpriteSource.FromSprite::class)
                 }
+
+                contextual(AssetHandle::class) { args -> AssetHandleSerializer(args[0]) }
 
                 additionalSerializers.forEach { it() }
 

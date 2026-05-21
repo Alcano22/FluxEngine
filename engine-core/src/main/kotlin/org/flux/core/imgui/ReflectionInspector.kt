@@ -5,21 +5,20 @@ import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImBoolean
 import imgui.type.ImString
 import org.flux.core.asset.AnimationHandle
-import org.flux.core.asset.AssetLocation
-import org.flux.core.asset.AssetManager
+import org.flux.core.asset.AssetData
+import org.flux.core.asset.AssetHandle
+import org.flux.core.asset.Sprite
+import org.flux.core.asset.SpriteSource
+import org.flux.core.asset.TextureHandle
+import org.flux.core.asset.resolve
 import org.flux.core.logging.logger
 import org.flux.core.renderer.Texture2D
-import org.flux.core.asset.TextureHandle
 import org.flux.core.scene.Component
 import org.flux.core.scene.ExposeInInspector
 import org.flux.core.scene.HideInInspector
+import org.flux.core.serialization.AssetSerializer
 import org.flux.core.util.Color
-import org.joml.Vector2f
-import org.joml.Vector2i
-import org.joml.Vector3f
-import org.joml.Vector3i
-import org.joml.Vector4f
-import org.joml.Vector4i
+import org.joml.*
 import java.io.File
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty1
@@ -59,16 +58,28 @@ object ReflectionInspector {
                 val type = mutProperty.returnType.classifier as? KClass<*>
                 val value = mutProperty.get(component)
 
-                if (type == TextureHandle::class) {
-                    drawTextureField(name, value as? TextureHandle) { newHandle ->
-                        mutProperty.set(component, newHandle)
+                if (type == AssetHandle::class) {
+                    val handle = value as? AssetHandle<*>
+                    val returnType = mutProperty.returnType
+
+                    val typeArg = returnType.arguments.firstOrNull()?.type?.classifier
+                    when (typeArg) {
+                        Texture2D::class -> drawTextureField(name, handle as? TextureHandle) { newHandle ->
+                            mutProperty.set(component, newHandle)
+                        }
+                        AssetData.Animation::class -> drawAnimationField(name, handle as? AnimationHandle) { newHandle ->
+                            mutProperty.set(component, newHandle)
+                        }
+                        else -> drawGenericAssetField(name, handle) { newHandle ->
+                            mutProperty.set(component, newHandle)
+                        }
                     }
                     continue
                 }
 
-                if (type == AnimationHandle::class) {
-                    drawAnimationField(name, value as? AnimationHandle) { newHandle ->
-                        mutProperty.set(component, newHandle)
+                if (type == SpriteSource::class) {
+                    drawSpriteSourceField(name, value as? SpriteSource) { newSource ->
+                        mutProperty.set(component, newSource)
                     }
                     continue
                 }
@@ -131,7 +142,7 @@ object ReflectionInspector {
         handle: TextureHandle?,
         onChanged: (TextureHandle?) -> Unit
     ) {
-        val texture = handle?.texture
+        val texture = handle?.resolve()
         if (texture != null)
             ImGuiEx.imageFlipped(texture.rendererId, 48f, 48f)
         else
@@ -174,6 +185,80 @@ object ReflectionInspector {
             if (payload != null) {
                 val relative = File(payload).relativeTo(File("").absoluteFile).path
                 onChanged(AnimationHandle(relative))
+            }
+            ImGui.endDragDropTarget()
+        }
+
+        if (ImGui.beginPopupContextItem("##ctx_$name")) {
+            if (ImGui.menuItem("Clear"))
+                onChanged(null)
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawGenericAssetField(
+        name: String,
+        handle: AssetHandle<*>?,
+        onChanged: (AssetHandle<*>?) -> Unit
+    ) {
+        if (handle != null)
+            ImGui.text(handle.path)
+        else
+            ImGui.textDisabled("[None]")
+
+        ImGui.sameLine()
+        ImGui.text(name)
+
+        if (ImGui.beginPopupContextItem("##ctx_$name")) {
+            if (ImGui.menuItem("Clear"))
+                onChanged(null)
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawSpriteSourceField(
+        name: String,
+        source: SpriteSource?,
+        onChanged: (SpriteSource?) -> Unit
+    ) {
+        when (source) {
+            is SpriteSource.FromTexture -> {
+                val tex = runCatching { source.handle.resolve() }.getOrNull()
+                if (tex != null)
+                    ImGuiEx.imageFlipped(tex.rendererId, 48f, 48f)
+                else
+                    ImGui.textDisabled("[None]")
+                ImGui.sameLine()
+                ImGui.text("$name  [Texture]")
+            }
+            is SpriteSource.FromSprite -> {
+                val sheet = runCatching { source.sprite.spritesheet.resolve() }.getOrNull()
+                val tex = runCatching { sheet?.texture?.resolve() }.getOrNull()
+                if (tex != null && sheet != null) {
+                    val uvs = sheet.computeUVs(source.sprite.frameIndex)
+                    ImGui.image(tex.rendererId.toLong(), 48f, 48f, uvs[0], uvs[3], uvs[2], uvs[1])
+                } else
+                    ImGui.textDisabled("[None]")
+                ImGui.sameLine()
+                ImGui.text("$name  [Sprite #${source.sprite.frameIndex}]")
+            }
+            null -> {
+                ImGui.textDisabled("[None]")
+                ImGui.sameLine()
+                ImGui.text(name)
+            }
+        }
+
+        if (ImGui.beginDragDropTarget()) {
+            ImGui.acceptDragDropPayload<String>("ASSET_TEXTURE")?.let { payload ->
+                val relative = File(payload).relativeTo(File("").absoluteFile).path
+                onChanged(SpriteSource.FromTexture(TextureHandle(relative)))
+            }
+            ImGui.acceptDragDropPayload<String>("ASSET_SPRITE")?.let { payload ->
+                runCatching {
+                    val sprite = AssetSerializer.format.decodeFromString<Sprite>(payload)
+                    onChanged(SpriteSource.FromSprite(sprite))
+                }
             }
             ImGui.endDragDropTarget()
         }

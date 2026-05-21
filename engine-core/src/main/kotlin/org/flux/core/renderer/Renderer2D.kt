@@ -2,7 +2,7 @@ package org.flux.core.renderer
 
 import org.flux.core.asset.AssetLocation
 import org.flux.core.asset.AssetManager
-import org.flux.core.scene.AnimationFrame
+import org.flux.core.asset.Sprite
 import org.flux.core.util.Color
 import org.flux.core.util.Disposable
 import org.joml.*
@@ -175,9 +175,37 @@ object Renderer2D : Disposable {
     fun drawQuad(
         transform: Matrix4fc,
         texture: Texture2D? = null,
-        frame: AnimationFrame.SheetFrame? = null,
         color: Color = Color.White,
         entityId: Int = -1
+    ) = drawQuadInternal(transform, texture, quadTexCoords, color, entityId)
+
+    fun drawQuad(
+        transform: Matrix4fc,
+        sprite: Sprite,
+        color: Color = Color.White,
+        entityId: Int = -1
+    ) {
+        val uvs = sprite.computeUVs()
+        drawQuadInternal(
+            transform,
+            sprite.texture,
+            arrayOf(
+                Vector2f(uvs[0], uvs[1]),
+                Vector2f(uvs[2], uvs[1]),
+                Vector2f(uvs[2], uvs[3]),
+                Vector2f(uvs[0], uvs[3])
+            ),
+            color,
+            entityId
+        )
+    }
+
+    private fun drawQuadInternal(
+        transform: Matrix4fc,
+        texture: Texture2D?,
+        texCoords: Array<Vector2f>,
+        color: Color,
+        entityId: Int
     ) {
         if (quadIndexCount >= MAX_INDICES || textureSlotIndex >= maxTextureSlots) {
             flush()
@@ -199,15 +227,6 @@ object Renderer2D : Disposable {
                 textureSlotIndex++
             }
         }
-
-        val texCoords = if (frame != null)
-            arrayOf(
-                Vector2f(frame.u0, frame.v0),
-                Vector2f(frame.u1, frame.v0),
-                Vector2f(frame.u1, frame.v1),
-                Vector2f(frame.u0, frame.v1)
-            )
-        else quadTexCoords
 
         repeat(4) { i ->
             val transformedPos = Vector4f(quadVertexPositions[i]).mul(transform)

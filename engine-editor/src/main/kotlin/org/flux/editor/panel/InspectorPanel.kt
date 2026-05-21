@@ -6,12 +6,19 @@ import imgui.flag.ImGuiCond
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
+import kotlinx.serialization.encodeToString
+import org.flux.core.asset.AssetData
 import org.flux.core.asset.AssetManager
+import org.flux.core.asset.Sprite
+import org.flux.core.asset.SpritesheetHandle
+import org.flux.core.asset.TextureHandle
 import org.flux.core.asset.meta.ImageMeta
 import org.flux.core.asset.meta.MetaManager
+import org.flux.core.asset.resolve
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.imgui.ReflectionInspector
 import org.flux.core.scene.Entity
+import org.flux.core.serialization.AssetSerializer
 import org.flux.editor.util.DnDPayload
 import org.flux.editor.util.NotificationModal
 import org.flux.editor.util.SelectionManager
@@ -71,10 +78,13 @@ class InspectorPanel : EditorPanel("Inspector") {
     }
 
     private fun drawAssetInspector(path: Path) {
-        val ext = path.extension.lowercase()
-        when (ext) {
+        when (val ext = path.extension.lowercase()) {
             "png", "jpg", "jpeg" -> drawImageMeta(path)
-            else                 -> ImGui.textDisabled("No inspector for .$ext files")
+            "asset" -> when (AssetManager.getAssetType(path.toAbsolutePath().toString())) {
+                "SPRITESHEET" -> drawSpritesheetInspector(path)
+                else          -> ImGui.textDisabled("No inspector for this asset type")
+            }
+            else -> ImGui.textDisabled("No inspector for .$ext files")
         }
     }
 
@@ -82,25 +92,95 @@ class InspectorPanel : EditorPanel("Inspector") {
         val absPath = path.toAbsolutePath().toString()
         val meta = MetaManager.getOrCreate(absPath, ImageMeta())
 
-        val flags = ImGuiTreeNodeFlags.DefaultOpen or ImGuiTreeNodeFlags.Framed
-        ImGuiEx.treeNode("Image Import Settings", flags) {
-            var changed = false
+        var changed = false
 
-            changed = ImGuiEx.enumCombo("Min Filter", meta::minFilter) || changed
-            changed = ImGuiEx.enumCombo("Mag Filter", meta::magFilter) || changed
-            changed = ImGuiEx.enumCombo("Wrap S", meta::wrapS) || changed
-            changed = ImGuiEx.enumCombo("Wrap T", meta::wrapT) || changed
+        changed = ImGuiEx.enumCombo("Min Filter", meta::minFilter) || changed
+        changed = ImGuiEx.enumCombo("Mag Filter", meta::magFilter) || changed
+        changed = ImGuiEx.enumCombo("Wrap S", meta::wrapS) || changed
+        changed = ImGuiEx.enumCombo("Wrap T", meta::wrapT) || changed
 
-            val mipmaps = ImBoolean(meta.generateMipmaps)
-            if (ImGui.checkbox("Generate Mipmaps", mipmaps)) {
-                meta.generateMipmaps = mipmaps.get()
-                changed = true
+        val mipmaps = ImBoolean(meta.generateMipmaps)
+        if (ImGui.checkbox("Generate Mipmaps", mipmaps)) {
+            meta.generateMipmaps = mipmaps.get()
+            changed = true
+        }
+
+        if (changed) {
+            MetaManager.save(absPath, meta)
+            AssetManager.invalidateTexture(absPath)
+        }
+    }
+
+    private fun drawSpritesheetInspector(path: Path) {
+        val absPath = path.toAbsolutePath().toString()
+        val sheet = runCatching {
+            AssetManager.getAsset<AssetData.Spritesheet>(absPath)
+        }.getOrElse {
+            ImGui.textDisabled("Failed to load spritesheet")
+            return
+        }
+
+        val tex = runCatching { sheet.texture.resolve() }.getOrNull()
+
+        if (tex == null) {
+            ImGui.textDisabled("No texture loaded")
+            return
+        }
+
+        val cols = ((tex.width - sheet.offsetX) / (sheet.cellWidth + sheet.paddingX).coerceAtLeast(1)).coerceAtLeast(1)
+        val rows = ((tex.height - sheet.offsetY) / (sheet.cellHeight + sheet.paddingY).coerceAtLeast(1)).coerceAtLeast(1)
+
+        val emptyFrames = sheet.getEmptyFrames()
+        val validFrames = (0 until rows).flatMap { row ->
+            (0 until cols).mapNotNull { col ->
+                val x1 = sheet.offsetX + col * (sheet.cellWidth + sheet.paddingX) + sheet.cellWidth
+                val y1 = sheet.offsetY + row * (sheet.cellHeight + sheet.paddingY) + sheet.cellHeight
+                val frameIndex = row * cols + col
+                if (x1 <= tex.width && y1 <= tex.height && frameIndex !in emptyFrames)
+                    frameIndex
+                else null
+            }
+        }
+
+        ImGui.textDisabled("${validFrames.size} frames")
+        ImGui.separator()
+
+        val thumbSize = 48f
+        val availW = ImGui.getContentRegionAvailX()
+        val perRow = ((availW + 4f) / (thumbSize + 4f)).toInt().coerceAtLeast(1)
+
+        validFrames.forEachIndexed { idx, frameIndex ->
+            ImGui.pushID(frameIndex)
+
+            val uvs = sheet.computeUVs(frameIndex)
+            val aspect = sheet.cellWidth.toFloat() / sheet.cellHeight.toFloat()
+            val thumbW = thumbSize * aspect
+
+            val cursorPos = ImGui.getCursorPos()
+            ImGui.image(tex.rendererId.toLong(), thumbW, thumbSize, uvs[0], uvs[3], uvs[2], uvs[1])
+            ImGui.setCursorPos(cursorPos)
+            ImGui.invisibleButton("##frame_$frameIndex", thumbW, thumbSize)
+
+            if (ImGui.beginDragDropSource()) {
+                val sprite = Sprite(
+                    spritesheet = SpritesheetHandle(absPath),
+                    frameIndex  = frameIndex
+                )
+                val json = AssetSerializer.format.encodeToString(sprite)
+                ImGui.setDragDropPayload(DnDPayload.SPRITE, json)
+                ImGui.image(tex.rendererId.toLong(), thumbW, thumbSize, uvs[0], uvs[3], uvs[2], uvs[1])
+                ImGui.sameLine()
+                ImGui.text("Frame $frameIndex")
+                ImGui.endDragDropSource()
             }
 
-            if (changed) {
-                MetaManager.save(absPath, meta)
-                AssetManager.invalidateTexture(absPath)
-            }
+            if (ImGui.isItemHovered())
+                ImGui.setTooltip("Frame $frameIndex")
+
+            if ((idx + 1) % perRow != 0)
+                ImGui.sameLine()
+
+            ImGui.popID()
         }
     }
 }

@@ -40,4 +40,6 @@ interface Texture2D : Texture {
     }
 
     fun setData(data: ByteArray)
+
+    fun getPixels(): ByteArray
 }

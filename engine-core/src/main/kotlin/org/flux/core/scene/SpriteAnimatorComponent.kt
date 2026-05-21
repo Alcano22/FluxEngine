@@ -1,11 +1,14 @@
 package org.flux.core.scene
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.flux.core.asset.AnimationHandle
+import org.flux.core.asset.resolve
 import org.flux.core.util.Timestep
 
 @Serializable
+@SerialName("SpriteAnimatorComponent")
 @SingleComponent
 class SpriteAnimatorComponent(
     var animationHandle: AnimationHandle? = null
@@ -24,11 +27,11 @@ class SpriteAnimatorComponent(
     val currentFrame get() = currentClip?.frames?.getOrNull(frameIndex)
 
     override fun onAttach() {
-        animationHandle?.animation?.clips?.firstOrNull()?.let { play(it.name) }
+        animationHandle?.resolve()?.clips?.firstOrNull()?.let { play(it.name) }
     }
 
     override fun onStart() {
-        animationHandle?.animation?.clips?.firstOrNull()?.let { play(it.name) }
+        animationHandle?.resolve()?.clips?.firstOrNull()?.let { play(it.name) }
     }
 
     override fun onStop() {
@@ -54,7 +57,7 @@ class SpriteAnimatorComponent(
     }
 
     fun play(name: String) {
-        val clip = animationHandle?.animation?.clips?.find { it.name == name } ?: return
+        val clip = animationHandle?.resolve()?.clips?.find { it.name == name } ?: return
         if (clip == currentClip) return
 
         currentClip = clip

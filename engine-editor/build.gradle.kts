@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.shadow)
     application
 }
 
@@ -17,6 +18,13 @@ val lwjglNatives = when {
     else -> "natives-linux"
 }
 
+val lwjglPlatforms = listOf(
+    "natives-windows",
+    "natives-linux",
+    "natives-macos",
+    "natives-macos-arm64"
+)
+
 dependencies {
     implementation(project(":engine-core"))
     implementation(project(":engine-backend-glfw"))
@@ -26,10 +34,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines)
 
     implementation(platform(libs.lwjgl.bom))
-    runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
-    runtimeOnly("org.lwjgl:lwjgl-glfw::$lwjglNatives")
-    runtimeOnly("org.lwjgl:lwjgl-opengl::$lwjglNatives")
-    runtimeOnly("org.lwjgl:lwjgl-stb::$lwjglNatives")
+    lwjglPlatforms.forEach { platform ->
+        runtimeOnly("org.lwjgl:lwjgl::$platform")
+        runtimeOnly("org.lwjgl:lwjgl-glfw::$platform")
+        runtimeOnly("org.lwjgl:lwjgl-opengl::$platform")
+        runtimeOnly("org.lwjgl:lwjgl-stb::$platform")
+    }
 }
 
 tasks.named<JavaExec>("run") {
@@ -37,6 +47,13 @@ tasks.named<JavaExec>("run") {
         environment("__NV_PRIME_RENDER_OFFLOAD", "1")
         environment("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
     }
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("FluxEngine")
+    archiveClassifier.set("")
+    archiveVersion.set("1.0")
+    mergeServiceFiles()
 }
 
 application {

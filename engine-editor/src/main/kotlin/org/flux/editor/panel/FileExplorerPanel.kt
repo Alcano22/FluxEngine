@@ -10,12 +10,13 @@ import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiTableFlags
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImString
-import org.flux.core.asset.AnimationAsset
+import org.flux.core.asset.AssetData
 import org.flux.core.asset.AssetLocation
 import org.flux.core.asset.AssetManager
+import org.flux.core.asset.TextureHandle
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.renderer.TextureFilter
-import org.flux.core.serialization.AnimationSerializer
+import org.flux.core.serialization.AssetSerializer
 import org.flux.editor.util.DnDPayload
 import org.flux.editor.util.NotificationModal
 import org.flux.editor.util.SelectionManager
@@ -27,6 +28,7 @@ import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
 import kotlin.io.path.name
 import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.relativeTo
 import kotlin.math.floor
 import kotlin.math.max
 
@@ -49,6 +51,7 @@ class FileExplorerPanel(
     private var renameBuffer = ImString(256)
 
     var onAnimationOpen: ((String) -> Unit)? = null
+    var onSpritesheetOpen: ((String) -> Unit)? = null
 
     override fun drawContent() {
         ImGuiEx.window(title) {
@@ -170,6 +173,16 @@ class FileExplorerPanel(
                     createFolder(currentDir)
                 if (ImGui.menuItem("Animation"))
                     createAnimationFile(currentDir)
+
+                val sel = selectedEntry
+                if (sel != null && !sel.isDirectory()) {
+                    val ext = sel.extension.lowercase()
+                    if (ext == "png" || ext == "jpg" || ext == "jpeg") {
+                        ImGui.separator()
+                        if (ImGui.menuItem("Spritesheet (${sel.nameWithoutExtension})"))
+                            createSpritesheetFile(currentDir, sel)
+                    }
+                }
                 ImGui.endMenu()
             }
             ImGui.endPopup()
@@ -180,7 +193,7 @@ class FileExplorerPanel(
         val isDir = path.isDirectory()
         val ext = path.extension.lowercase()
         val label = elide(path.name.ifEmpty { path.nameWithoutExtension }, LABEL_MAX_CHARS)
-        val texId = IconCache.idFor(isDir, ext)
+        val texId = IconCache.idFor(isDir, ext, path.toAbsolutePath().toString())
         val textH = ImGui.getTextLineHeightWithSpacing()
         val cellW = ImGui.getContentRegionAvailX()
         val cellH = THUMB_SIZE + textH + 6f
@@ -204,6 +217,27 @@ class FileExplorerPanel(
             ImGui.popStyleColor(3)
         ImGui.popStyleVar()
 
+        if (ImGui.beginPopupContextWindow("##cell_ctx_${path.name}")) {
+            if (ImGui.beginMenu("New")) {
+                if (ImGui.menuItem("Folder"))
+                    createFolder(currentDir)
+                if (ImGui.menuItem("Animation"))
+                    createAnimationFile(currentDir)
+
+                val sel = selectedEntry
+                if (sel != null && !sel.isDirectory()) {
+                    val ext = sel.extension.lowercase()
+                    if (ext == "png" || ext == "jpg" || ext == "jpeg") {
+                        ImGui.separator()
+                        if (ImGui.menuItem("Spritesheet (${sel.nameWithoutExtension})"))
+                            createSpritesheetFile(currentDir, sel)
+                    }
+                }
+                ImGui.endMenu()
+            }
+            ImGui.endPopup()
+        }
+
         if (selected && !isRenaming && ImGui.isKeyPressed(ImGuiKey.F2)) {
             renamingEntry = path
             renameBuffer = ImString(path.nameWithoutExtension, 256)
@@ -218,7 +252,11 @@ class FileExplorerPanel(
                 "png", "jpg", "jpeg" -> DnDPayload.TEXTURE
                 "kt"                 -> DnDPayload.SCRIPT
                 "flux"               -> DnDPayload.SCENE
-                "anim"               -> DnDPayload.ANIMATION
+                "asset"              -> when (AssetManager.getAssetType(path.toAbsolutePath().toString())) {
+                    "ANIMATION"   -> DnDPayload.ANIMATION
+                    "SPRITESHEET" -> DnDPayload.SPRITESHEET
+                    else          -> null
+                }
                 else                 -> null
             }
 
@@ -237,8 +275,12 @@ class FileExplorerPanel(
 
         if (!isDir && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
             when (ext) {
-                "anim" -> onAnimationOpen?.invoke(path.toAbsolutePath().toString())
-                else   -> openInExternalEditor(path)
+                "asset" -> when (AssetManager.getAssetType(path.toAbsolutePath().toString())) {
+                    "ANIMATION"   -> onAnimationOpen?.invoke(path.toAbsolutePath().toString())
+                    "SPRITESHEET" -> onSpritesheetOpen?.invoke(path.toAbsolutePath().toString())
+                    else          -> openInExternalEditor(path)
+                }
+                else -> openInExternalEditor(path)
             }
         }
 
@@ -420,19 +462,47 @@ class FileExplorerPanel(
 
     private fun createAnimationFile(dir: Path) {
         var name = "New Animation"
-        var file = dir.resolve("$name.anim").toFile()
+        var file = dir.resolve("$name.asset").toFile()
         var counter = 1
         while (file.exists()) {
             name = "New Animation $counter"
-            file = dir.resolve("$name.anim").toFile()
+            file = dir.resolve("$name.asset").toFile()
             counter++
         }
 
         runCatching {
-            file.writeText(AnimationSerializer.serialize(AnimationAsset()))
+            file.writeText(AssetSerializer.serialize(AssetData.Animation()))
             selectedEntry = file.toPath()
         }.onFailure {
             NotificationModal.error("Failed to create animation: ${it.message}")
+        }
+    }
+
+    private fun createSpritesheetFile(dir: Path, texturePath: Path) {
+        val relative = texturePath.toAbsolutePath()
+            .relativeTo(Path("").toAbsolutePath())
+            .toString()
+
+        var name = texturePath.nameWithoutExtension
+        var file = dir.resolve("$name.asset").toFile()
+        var counter = 1
+        while (file.exists()) {
+            name = "${texturePath.nameWithoutExtension} $counter"
+            file = dir.resolve("$name.asset").toFile()
+            counter++
+        }
+
+        runCatching {
+            file.writeText(AssetSerializer.serialize(
+                AssetData.Spritesheet(
+                    texture    = TextureHandle(relative),
+                    cellWidth  = 32,
+                    cellHeight = 32
+                )
+            ))
+            selectedEntry = file.toPath()
+        }.onFailure {
+            NotificationModal.error("Failed to create spritesheet: ${it.message}")
         }
     }
 
@@ -454,17 +524,23 @@ class FileExplorerPanel(
             "otf"    to "file_font.png",
             "shader" to "file_code.png",
             "glsl"   to "file_code.png",
-            "kt"     to "file_code.png",
-            "anim"   to "file_animation.png"
+            "kt"     to "file_code.png"
         )
 
         private val cache = mutableMapOf<String, Int>()
 
-        fun idFor(isDir: Boolean, ext: String): Int {
-            val path = if (isDir) FOLDER else extMap[ext] ?: GENERIC
-            return cache.getOrPut(path) {
+        fun idFor(isDir: Boolean, ext: String, absPath: String): Int {
+            val iconPath = when {
+                isDir -> FOLDER
+                ext == "asset" -> when (AssetManager.getAssetType(absPath)) {
+                    "ANIMATION" -> "file_animation.png"
+                    else        -> GENERIC
+                }
+                else -> extMap[ext] ?: GENERIC
+            }
+            return cache.getOrPut(iconPath) {
                 runCatching {
-                    AssetManager.getTexture("textures/ui/$path", AssetLocation.INTERNAL)
+                    AssetManager.getTexture("textures/ui/$iconPath", AssetLocation.INTERNAL)
                         .rendererId
                 }.getOrDefault(0)
             }

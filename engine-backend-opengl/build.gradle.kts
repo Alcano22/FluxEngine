@@ -13,9 +13,7 @@ dependencies {
     implementation(libs.lwjgl.opengl)
 
     implementation(libs.imgui.lwjgl3)
-    runtimeOnly(when {
-        osName.contains("win") -> libs.imgui.natives.windows
-        osName.contains("mac") -> libs.imgui.natives.macos
-        else                   -> libs.imgui.natives.linux
-    })
+    implementation(libs.imgui.natives.windows)
+    implementation(libs.imgui.natives.linux)
+    implementation(libs.imgui.natives.macos)
 }

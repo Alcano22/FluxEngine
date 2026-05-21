@@ -9,6 +9,7 @@ imgui                = "1.92.0"
 reflections          = "0.10.2"
 kotlinLogging        = "6.0.9"
 logback              = "1.5.6"
+shadow               = "8.3.6"
 
 [libraries]
 kotlin-reflect  = { module = "org.jetbrains.kotlin:kotlin-reflect",             version.ref = "kotlin" }
@@ -39,6 +40,7 @@ kotlinLogging   = { module = "io.github.oshai:kotlin-logging-jvm", version.ref =
 logback-classic = { module = "ch.qos.logback:logback-classic",     version.ref = "logback" }
 
 [plugins]
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-
+kotlin-jvm           = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

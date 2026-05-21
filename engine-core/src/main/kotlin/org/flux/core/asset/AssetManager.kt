@@ -1,5 +1,8 @@
 package org.flux.core.asset
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.flux.core.asset.meta.ImageMeta
 import org.flux.core.asset.meta.MetaManager
 import org.flux.core.renderer.Shader
@@ -8,7 +11,7 @@ import org.flux.core.util.Disposable
 import org.flux.core.logging.logger
 import org.flux.core.logging.require
 import org.flux.core.renderer.TextureParams
-import org.flux.core.serialization.AnimationSerializer
+import org.flux.core.serialization.AssetSerializer
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -25,7 +28,9 @@ object AssetManager : Disposable {
     private val byteCache      = ConcurrentHashMap<String, ByteArray>()
     private val shaderCache    = ConcurrentHashMap<String, Shader>()
     private val textureCache   = ConcurrentHashMap<String, Texture2D>()
-    private val animationCache = ConcurrentHashMap<String, AnimationAsset>()
+    @PublishedApi
+    internal val assetCache    = ConcurrentHashMap<String, AssetData>()
+    private val assetTypeCache = ConcurrentHashMap<String, String>()
 
     fun readBytes(path: String, location: AssetLocation = AssetLocation.EXTERNAL): ByteArray {
         val key = "${location.name}:$path"
@@ -121,14 +126,29 @@ object AssetManager : Disposable {
         textureCache.remove("EXTERNAL:$path")
     }
 
-    fun getAnimation(path: String): AnimationAsset =
-        animationCache.getOrPut(path) {
-            val json = readText(path)
-            AnimationSerializer.deserialize(json)
+    fun getAssetType(path: String): String? =
+        assetTypeCache.getOrPut(path) {
+            runCatching {
+                Json.parseToJsonElement(File(path).readText())
+                    .jsonObject["type"]
+                    ?.jsonPrimitive
+                    ?.content
+                    ?: return null
+            }.getOrNull() ?: return null
         }
 
-    fun invalidateAnimation(path: String) {
-        animationCache.remove(path)
+    inline fun <reified T : AssetData> getAsset(path: String): T {
+        val cached = assetCache.getOrPut(path) {
+            val json = readText(path)
+            AssetSerializer.deserialize(json)
+        }
+        return cached as? T
+            ?: error("Asset at '$path' is ${cached::class.simpleName}, expected ${T::class.simpleName}")
+    }
+
+    fun invalidateAsset(path: String) {
+        assetCache.remove(path)
+        invalidateText(path)
     }
 
     fun getFont(path: String, location: AssetLocation = AssetLocation.EXTERNAL) = readBytes(path, location)
@@ -143,6 +163,7 @@ object AssetManager : Disposable {
         textureCache.values.forEach { it.dispose() }
         textureCache.clear()
 
-        animationCache.clear()
+        assetCache.clear()
+        assetTypeCache.clear()
     }
 }

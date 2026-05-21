@@ -192,6 +192,15 @@ class GLTexture2D : Texture2D {
         glTextureSubImage2D(rendererId, 0, 0, 0, width, height, dataFormat, GL_UNSIGNED_BYTE, buf)
     }
 
+    override fun getPixels(): ByteArray {
+        val channels = if (dataFormat == GL_RGBA) 4 else 3
+        val buffer = BufferUtils.createByteBuffer(width * height * channels)
+        glGetTextureImage(rendererId, 0, dataFormat, GL_UNSIGNED_BYTE, buffer)
+        val bytes = ByteArray(buffer.remaining())
+        buffer.get(bytes)
+        return bytes
+    }
+
     override fun bind(slot: Int) = glBindTextureUnit(slot, rendererId)
 
     override fun dispose() = glDeleteTextures(rendererId)

@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.flux.core.asset.SpriteSource
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.input.Input
 import org.flux.core.layer.Layer
@@ -17,7 +18,6 @@ import org.flux.core.logging.logger
 import org.flux.core.asset.TextureHandle
 import org.flux.core.runtime.RuntimeState
 import org.flux.core.scene.AnimationClip
-import org.flux.core.scene.AnimationFrame
 import org.flux.core.scene.CameraComponent
 import org.flux.core.scene.PointLight2DComponent
 import org.flux.core.scene.Scene
@@ -63,11 +63,17 @@ class EditorLayer : Layer("EditorLayer") {
         editorManager.addPanel(ConsolePanel())
 
         val animPanel = editorManager.addPanel(AnimationEditorPanel())
+        val sheetPanel = editorManager.addPanel(SpritesheetEditorPanel())
         val fileExplorerPanel = editorManager.addPanel(FileExplorerPanel())
 
         fileExplorerPanel.onAnimationOpen = { path ->
             animPanel.open(path)
             animPanel.requestFocus()
+        }
+
+        fileExplorerPanel.onSpritesheetOpen = { path ->
+            sheetPanel.open(path)
+            sheetPanel.requestFocus()
         }
     }
 
@@ -82,7 +88,7 @@ class EditorLayer : Layer("EditorLayer") {
             createEntity("Player").apply {
                 transform.scale.set(3f, 3f, 1f)
                 addComponent(SpriteRendererComponent().apply {
-                    textureHandle = TextureHandle("Assets/Textures/player1.png")
+                    source = SpriteSource.FromTexture(TextureHandle("Assets/Textures/player1.png"))
                 })
                 addComponent(SpriteAnimatorComponent())
                 ScriptLoader.instantiateOrNull("PlayerScript")?.let { addComponent(it) }

@@ -5,13 +5,10 @@ import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiKey
 import imgui.type.ImBoolean
 import imgui.type.ImString
-import org.flux.core.asset.AnimationAsset
-import org.flux.core.asset.AssetManager
-import org.flux.core.asset.TextureHandle
+import org.flux.core.asset.*
 import org.flux.core.imgui.ImGuiEx
 import org.flux.core.scene.AnimationClip
-import org.flux.core.scene.AnimationFrame
-import org.flux.core.serialization.AnimationSerializer
+import org.flux.core.serialization.AssetSerializer
 import org.flux.core.util.Timestep
 import org.flux.editor.util.DnDPayload
 import org.flux.editor.util.NotificationModal
@@ -20,7 +17,7 @@ import java.io.File
 class AnimationEditorPanel : EditorPanel("Animation Editor") {
 
     private var currentPath: String? = null
-    private var asset: AnimationAsset? = null
+    private var asset: AssetData.Animation? = null
     private var isDirty = false
 
     private var selectedClipIndex = -1
@@ -35,7 +32,8 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         currentPath = path
         asset = runCatching {
             val json = File(path).readText()
-            AnimationSerializer.deserialize(json)
+            AssetSerializer.deserialize(json) as? AssetData.Animation
+                ?: AssetData.Animation()
         }.getOrElse {
             NotificationModal.error("Failed to load animation: ${it.message}")
             null
@@ -69,7 +67,7 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         ImGuiEx.window(title) {
             val a = asset
             if (a == null) {
-                ImGui.textDisabled("No animation open. Double-click a .anim file.")
+                ImGui.textDisabled("No animation open. Double-click an animation .asset file.")
                 return@window
             }
 
@@ -89,7 +87,7 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         }
     }
 
-    private fun drawToolbar(a: AnimationAsset) {
+    private fun drawToolbar(a: AssetData.Animation) {
         if (ImGui.button("Save") || (ImGui.isKeyDown(ImGuiKey.LeftCtrl) && ImGui.isKeyPressed(ImGuiKey.S)))
             save(a)
 
@@ -99,7 +97,7 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         }
     }
 
-    private fun drawClipList(a: AnimationAsset) {
+    private fun drawClipList(a: AssetData.Animation) {
         ImGui.text("Clips")
         ImGui.separator()
 
@@ -108,7 +106,7 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
 
         clips.forEachIndexed { i, clip ->
             val selected = selectedClipIndex == i
-            val displayName = clip.name.ifEmpty { "##clip_$i" }
+            val displayName = clip.name.ifEmpty { "(unnamed)##$i" }
             if (ImGui.selectable(displayName, selected)) {
                 selectedClipIndex = i
                 selectedFrameIndex = -1
@@ -133,8 +131,7 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
 
         ImGui.separator()
         if (ImGui.button("+ Add Clip")) {
-            val newClip = AnimationClip(name = "New Clip")
-            val updated = clips + newClip
+            val updated = clips + AnimationClip(name = "New Clip")
             asset = a.copy(clips = updated)
             selectedClipIndex = updated.size - 1
             selectedFrameIndex = -1
@@ -142,7 +139,7 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         }
     }
 
-    private fun drawFrameEditor(a: AnimationAsset) {
+    private fun drawFrameEditor(a: AssetData.Animation) {
         val clipIndex = selectedClipIndex
         if (clipIndex < 0 || clipIndex >= a.clips.size) {
             ImGui.textDisabled("Select a clip")
@@ -168,45 +165,19 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         drawPreviewControls(clip)
 
         ImGui.separator()
-        ImGui.text("Spritesheet")
-        val handle = clip.textureHandle
-        if (handle != null) {
-            val tex = runCatching { handle.texture }.getOrNull()
-            if (tex != null) {
-                ImGuiEx.imageFlipped(tex.rendererId, 48f, 48f)
-                ImGui.sameLine()
-            }
-            ImGui.text(File(handle.path).name)
-        } else
-            ImGui.textDisabled("[None]  (needed for Sheet Frames)")
-
-        if (ImGui.beginDragDropTarget()) {
-            val payload = ImGui.acceptDragDropPayload<String>(DnDPayload.TEXTURE)
-            if (payload != null) {
-                val relative = File(payload).relativeTo(File("").absoluteFile).path
-                updateClip(a, clipIndex, clip.copy(textureHandle = TextureHandle(relative)))
-            }
-            ImGui.endDragDropTarget()
-        }
-
-        if (clip.textureHandle != null) {
-            ImGui.sameLine()
-            if (ImGui.smallButton("Clear##sheet"))
-                updateClip(a, clipIndex, clip.copy(textureHandle = null))
-        }
-
-        ImGui.separator()
         ImGui.text("Frames")
 
         var deletedIndex = -1
 
         frames.forEachIndexed { i, frame ->
-            val selected = selectedFrameIndex == i
             ImGui.pushID(i)
+            val selected = selectedFrameIndex == i
 
             val label = when (frame) {
-                is AnimationFrame.TextureFrame -> "Frame $i  [${File(frame.handle.path).name}]"
-                is AnimationFrame.SheetFrame   -> "Frame $i  [Sheet: ${frame.u0}..${frame.u1}]"
+                is SpriteSource.FromTexture ->
+                    "Frame $i  [${File(frame.handle.path).name}]"
+                is SpriteSource.FromSprite ->
+                    "Frame $i  [${File(frame.sprite.spritesheet.path).nameWithoutExtension} #${frame.sprite.frameIndex}]"
             }
 
             if (ImGui.selectable(label, selected))
@@ -247,34 +218,29 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
 
         ImGui.separator()
 
-        val availW = ImGui.getContentRegionAvailX()
-        val buttonW = (availW - ImGui.getStyle().itemSpacingX) * 0.5f
-
-        ImGui.pushStyleColor(ImGuiCol.Button,        0f, 0f, 0f, 0f)
+        val dropW = ImGui.getContentRegionAvailX()
+        ImGui.pushStyleColor(ImGuiCol.Button,        0.0f, 0.0f, 0.0f, 0.0f)
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.2f, 0.2f, 0.3f)
         ImGui.pushStyleColor(ImGuiCol.ButtonActive,  0.2f, 0.2f, 0.2f, 0.5f)
-        ImGui.button("Drop texture here...", buttonW, 32f)
+        ImGui.button("Drop texture or sprite...", dropW, 32f)
         ImGui.popStyleColor(3)
 
         if (ImGui.beginDragDropTarget()) {
-            val payload = ImGui.acceptDragDropPayload<String>(DnDPayload.TEXTURE)
-            if (payload != null) {
+            ImGui.acceptDragDropPayload<String>(DnDPayload.TEXTURE)?.let { payload ->
                 val relative = File(payload).relativeTo(File("").absoluteFile).path
-                val newFrame = AnimationFrame.TextureFrame(TextureHandle(relative))
-                val updated = frames + newFrame
+                val updated = frames + SpriteSource.FromTexture(TextureHandle(relative))
                 updateClip(a, clipIndex, clip.copy(frames = updated))
                 selectedFrameIndex = updated.size - 1
             }
+            ImGui.acceptDragDropPayload<String>(DnDPayload.SPRITE)?.let { payload ->
+                runCatching {
+                    val sprite = AssetSerializer.format.decodeFromString<Sprite>(payload)
+                    val updated = frames + SpriteSource.FromSprite(sprite)
+                    updateClip(a, clipIndex, clip.copy(frames = updated))
+                    selectedFrameIndex = updated.size - 1
+                }
+            }
             ImGui.endDragDropTarget()
-        }
-
-        ImGui.sameLine()
-        if (ImGui.button("+ Sheet Frame", buttonW, 32f)) {
-            val newFrame = AnimationFrame.SheetFrame(0f, 0f, 1f, 1f)
-            val updated = frames + newFrame
-            updateClip(a, clipIndex, clip.copy(frames = updated))
-            selectedFrameIndex = updated.size - 1
-            isDirty = true
         }
 
         val selFrame = frames.getOrNull(selectedFrameIndex)
@@ -288,64 +254,67 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
     }
 
     private fun drawFrameDetail(
-        a: AnimationAsset,
+        a: AssetData.Animation,
         clipIndex: Int,
         clip: AnimationClip,
-        frames: MutableList<AnimationFrame>,
+        frames: MutableList<SpriteSource>,
         frameIndex: Int,
-        frame: AnimationFrame
+        frame: SpriteSource
     ) {
         when (frame) {
-            is AnimationFrame.TextureFrame -> {
+            is SpriteSource.FromTexture -> {
                 ImGui.text("Texture: ${File(frame.handle.path).name}")
                 if (ImGui.beginDragDropTarget()) {
                     val payload = ImGui.acceptDragDropPayload<String>(DnDPayload.TEXTURE)
                     if (payload != null) {
                         val relative = File(payload).relativeTo(File("").absoluteFile).path
-                        frames[frameIndex] = AnimationFrame.TextureFrame(TextureHandle(relative))
+                        frames[frameIndex] = SpriteSource.FromTexture(TextureHandle(relative))
                         updateClip(a, clipIndex, clip.copy(frames = frames))
                     }
                     ImGui.endDragDropTarget()
                 }
 
-                val tex = runCatching { frame.handle.texture }.getOrNull()
+                val tex = runCatching { frame.handle.resolve() }.getOrNull()
                 if (tex != null)
                     ImGuiEx.imageFlipped(tex.rendererId, 64f, 64f)
             }
-            is AnimationFrame.SheetFrame -> {
-                val u0 = floatArrayOf(frame.u0)
-                val v0 = floatArrayOf(frame.v0)
-                val u1 = floatArrayOf(frame.u1)
-                val v1 = floatArrayOf(frame.v1)
 
-                ImGui.setNextItemWidth(50f)
-                var changed = ImGui.dragFloat("U0", u0, 0.01f, 0f, 1f)
-                ImGui.sameLine()
-                ImGui.setNextItemWidth(50f)
-                changed = changed || ImGui.dragFloat("##U1", u1, 0.01f, 0f, 1f)
-                ImGui.sameLine()
-                ImGui.text("U1")
+            is SpriteSource.FromSprite -> {
+                val sheet = runCatching { frame.sprite.spritesheet.resolve() }.getOrNull()
+                ImGui.text("Spritesheet: ${File(frame.sprite.spritesheet.path).nameWithoutExtension}")
+                ImGui.text("Frame Index: ${frame.sprite.frameIndex}")
 
-                ImGui.setNextItemWidth(50f)
-                changed = changed || ImGui.dragFloat("V0", v0, 0.01f, 0f, 1f)
-                ImGui.sameLine()
-                ImGui.setNextItemWidth(50f)
-                changed = changed || ImGui.dragFloat("##V1", v1, 0.01f, 0f, 1f)
-                ImGui.sameLine()
-                ImGui.text("V1")
+                if (sheet != null) {
+                    val tex = runCatching { sheet.texture.resolve() }.getOrNull()
+                    if (tex != null) {
+                        val cols = ((tex.width - sheet.offsetX) / (sheet.cellWidth + sheet.paddingX).coerceAtLeast(1)).coerceAtLeast(1)
+                        val rows = ((tex.height - sheet.offsetY) / (sheet.cellHeight + sheet.paddingY).coerceAtLeast(1)).coerceAtLeast(1)
+                        val totalFrames = (0 until rows).sumOf { row ->
+                            (0 until cols).count { col ->
+                                val x1 = sheet.offsetX + col * (sheet.cellWidth + sheet.paddingX) + sheet.cellWidth
+                                val y1 = sheet.offsetY + row * (sheet.cellHeight + sheet.paddingY) + sheet.cellHeight
+                                x1 <= tex.width && y1 <= tex.height
+                            }
+                        }
 
-                if (changed) {
-                    frames[frameIndex] = AnimationFrame.SheetFrame(u0[0], v0[0], u1[0], v1[0])
-                    updateClip(a, clipIndex, clip.copy(frames = frames))
-                }
+                        val indexBuffer = intArrayOf(frame.sprite.frameIndex)
+                        if (ImGui.dragInt("Frame Index", indexBuffer, 1f, 0, totalFrames - 1)) {
+                            frames[frameIndex] = SpriteSource.FromSprite(
+                                frame.sprite.copy(frameIndex = indexBuffer[0])
+                            )
+                            updateClip(a, clipIndex, clip.copy(frames = frames))
+                        }
 
-                val sheetTex = runCatching { clip.textureHandle?.texture }.getOrNull()
-                if (sheetTex != null) {
-                    ImGui.separator()
-                    ImGui.image(
-                        sheetTex.rendererId.toLong(), 128f, 128f,
-                        frame.u0, frame.v1, frame.u1, frame.v0
-                    )
+                        val uvs = sheet.computeUVs(frame.sprite.frameIndex)
+                        val displayH = 128f
+                        val aspect = tex.width.toFloat() / tex.height.toFloat()
+                        val displayW = displayH * aspect
+                        ImGui.separator()
+                        ImGui.image(
+                            tex.rendererId.toLong(), displayW, displayH,
+                            uvs[0], uvs[3], uvs[2], uvs[1]
+                        )
+                    }
                 }
             }
         }
@@ -377,35 +346,38 @@ class AnimationEditorPanel : EditorPanel("Animation Editor") {
         ImGui.text("Preview")
 
         when (frame) {
-            is AnimationFrame.TextureFrame -> {
-                val tex = runCatching { frame.handle.texture }.getOrNull() ?: return
+            is SpriteSource.FromTexture -> {
+                val tex = runCatching { frame.handle.resolve() }.getOrNull() ?: return
                 ImGuiEx.imageFlipped(tex.rendererId, 128f, 128f)
             }
-            is AnimationFrame.SheetFrame -> {
-                val tex = runCatching { clip.textureHandle?.texture }.getOrNull() ?: run {
-                    ImGui.textDisabled("No spritesheet set")
-                    return
-                }
+
+            is SpriteSource.FromSprite -> {
+                val sheet = runCatching { frame.sprite.spritesheet.resolve() }.getOrNull() ?: return
+                val tex = runCatching { sheet.texture.resolve() }.getOrNull() ?: return
+                val uvs = sheet.computeUVs(frame.sprite.frameIndex)
+                val displayH = 128f
+                val aspect = tex.width.toFloat() / tex.height.toFloat()
+                val displayW = displayH * aspect
                 ImGui.image(
-                    tex.rendererId.toLong(), 128f, 128f,
-                    frame.u0, frame.v1, frame.u1, frame.v0
+                    tex.rendererId.toLong(), displayW, displayH,
+                    uvs[0], uvs[3], uvs[2], uvs[1]
                 )
             }
         }
     }
 
-    private fun updateClip(a: AnimationAsset, index: Int, newClip: AnimationClip) {
+    private fun updateClip(a: AssetData.Animation, index: Int, newClip: AnimationClip) {
         val clips = a.clips.toMutableList()
         clips[index] = newClip
         asset = a.copy(clips = clips)
         isDirty = true
     }
 
-    private fun save(a: AnimationAsset) {
+    private fun save(a: AssetData.Animation) {
         val path = currentPath ?: return
         runCatching {
-            File(path).writeText(AnimationSerializer.serialize(a))
-            AssetManager.invalidateAnimation(path)
+            File(path).writeText(AssetSerializer.serialize(a))
+            AssetManager.invalidateAsset(path)
             isDirty = false
         }.onFailure {
             NotificationModal.error("Failed to save: ${it.message}")
